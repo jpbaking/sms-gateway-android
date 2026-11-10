@@ -67,6 +67,10 @@ android {
     testOptions {
         // Robolectric (the database migration test) needs the merged manifest and resources.
         unitTests.isIncludeAndroidResources = true
+        // One JVM per test class. Robolectric installs its own security providers (Conscrypt
+        // first) for the whole JVM, which changes the TLS implementation that later, plain JVM
+        // tests such as TlsTest get. A fresh JVM per class keeps each test's environment its own.
+        unitTests.all { it.forkEvery = 1 }
     }
 
     packaging {
