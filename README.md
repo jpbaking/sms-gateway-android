@@ -106,6 +106,14 @@ connection without counting. Other 4xx responses are not retried, and deleting a
 pending retries. Every message is also stored on the phone, so `GET /api/v1/messages` can catch up
 on anything a webhook missed.
 
+### Storage and retention
+
+Messages are kept for 30 days by default. Change this on the app's **Storage** card, where `0`
+keeps them forever. Once a day, a background job deletes older messages, but never ones still
+queued or sending. If at least a quarter of the file is then free space, it also compacts the
+database (`VACUUM`), so the file actually shrinks. **Clean up now** runs the job immediately.
+WorkManager prunes its own finished webhook jobs automatically.
+
 ### How secrets are stored
 
 API keys are stored only as SHA-256 hashes. Webhook signing secrets and secret header values are

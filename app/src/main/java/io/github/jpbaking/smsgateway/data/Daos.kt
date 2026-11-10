@@ -29,6 +29,13 @@ abstract class MessageDao {
     @Query("SELECT * FROM messages WHERE direction = 'OUT' AND status = 'QUEUED' ORDER BY createdAt")
     abstract suspend fun queued(): List<MessageEntity>
 
+    /**
+     * Deletes messages last updated before [cutoff]. Outgoing messages that are still queued or
+     * being sent are kept, whatever their age.
+     */
+    @Query("DELETE FROM messages WHERE updatedAt < :cutoff AND status NOT IN ('QUEUED', 'SENDING')")
+    abstract suspend fun deleteOlderThan(cutoff: Long): Int
+
     @Query("UPDATE messages SET status = :status, error = :error, updatedAt = :now WHERE id = :id")
     abstract suspend fun setStatus(id: String, status: MessageStatus, error: String?, now: Long)
 

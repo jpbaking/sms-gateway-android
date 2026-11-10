@@ -44,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,9 +58,12 @@ import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.Direction
 import io.github.jpbaking.smsgateway.data.MessageEntity
+import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
 import io.github.jpbaking.smsgateway.service.GatewayService
 import io.github.jpbaking.smsgateway.service.ServerState
 import io.github.jpbaking.smsgateway.service.localIpv4Addresses
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
@@ -189,6 +193,8 @@ private fun GatewayScreen(app: GatewayApp) {
 
             item { WebhookRetrySection(app) }
 
+            item { StorageSection(app) }
+
             item {
                 Section("SIM cards") {
                     if (sims.isEmpty()) Text("No active SIMs found (or phone permission not granted).")
@@ -244,6 +250,50 @@ private fun WebhookRetrySection(app: GatewayApp) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
     }
+}
+
+@Composable
+private fun StorageSection(app: GatewayApp) {
+    val context = LocalContext.current
+    var days by remember { mutableStateOf(app.settings.messageRetentionDays.toString()) }
+    val scope = rememberCoroutineScope()
+    var sizeRefresh by remember { mutableIntStateOf(0) }
+    val dbBytes = remember(sizeRefresh) {
+        listOf("gateway.db", "gateway.db-wal", "gateway.db-shm").sumOf { context.getDatabasePath(it).length() }
+    }
+    Section("Storage") {
+        Text("Message database: ${formatBytes(dbBytes)}", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Once a day, messages older than this are deleted and the database is compacted. " +
+                "Messages still being sent are always kept.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = days,
+            onValueChange = { v ->
+                days = v.filter(Char::isDigit).take(5)
+                app.settings.messageRetentionDays = days.toIntOrNull() ?: 0
+            },
+            label = { Text("Keep messages for (days, 0 = forever)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        OutlinedButton(onClick = {
+            CleanupWorker.runNow(context)
+            // The job runs in the background; re-read the size once it has had time to finish.
+            scope.launch {
+                delay(3_000)
+                sizeRefresh++
+            }
+        }) { Text("Clean up now") }
+    }
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1L shl 30 -> "%.1f GB".format(bytes / (1L shl 30).toDouble())
+    bytes >= 1L shl 20 -> "%.1f MB".format(bytes / (1L shl 20).toDouble())
+    bytes >= 1L shl 10 -> "%.0f KB".format(bytes / (1L shl 10).toDouble())
+    else -> "$bytes B"
 }
 
 @SuppressLint("BatteryLife")
