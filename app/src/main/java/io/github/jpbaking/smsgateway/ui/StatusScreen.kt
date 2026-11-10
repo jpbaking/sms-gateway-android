@@ -213,9 +213,22 @@ private fun Attention(
     val power = context.getSystemService(PowerManager::class.java)
     val batteryRestricted = remember(refresh) { !power.isIgnoringBatteryOptimizations(context.packageName) }
     val httpsWithoutCert = remember(refresh) { app.settings.httpsEnabled && app.settings.tlsMaterial() == null }
-    if (!noKeys && !batteryRestricted && !httpsWithoutCert && keysToReview == 0) return
+    var quickTunnelNotice by remember { mutableStateOf(app.settings.quickTunnelRemovedNotice) }
+    if (!noKeys && !batteryRestricted && !httpsWithoutCert && keysToReview == 0 && !quickTunnelNotice) return
 
     Section("Needs attention") {
+        if (quickTunnelNotice) {
+            Warning(
+                "Quick tunnels have been removed, because they made it too easy to put the gateway on the " +
+                    "internet by accident. Your tunnel was turned off. To reach the gateway from outside, set " +
+                    "up a tunnel from your own Cloudflare account.",
+            )
+            TextButton(onClick = { openSettings(SettingsPage.TUNNEL) }) { Text("Set up a tunnel") }
+            TextButton(onClick = {
+                app.settings.quickTunnelRemovedNotice = false
+                quickTunnelNotice = false
+            }) { Text("Dismiss") }
+        }
         if (keysToReview > 0) {
             Warning(
                 (if (keysToReview == 1) "1 API key has" else "$keysToReview API keys have") +

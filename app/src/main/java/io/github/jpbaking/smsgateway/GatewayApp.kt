@@ -4,6 +4,7 @@ import android.app.Application
 import io.github.jpbaking.smsgateway.data.ApiKeys
 import io.github.jpbaking.smsgateway.data.AppDatabase
 import io.github.jpbaking.smsgateway.data.Settings
+import io.github.jpbaking.smsgateway.data.TunnelMode
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
 import io.github.jpbaking.smsgateway.net.CellularAddresses
 import io.github.jpbaking.smsgateway.service.Notifier
@@ -53,6 +54,7 @@ class GatewayApp : Application() {
         instance = this
         db = AppDatabase.create(this)
         settings = Settings(this)
+        retireQuickTunnel()
         events = EventStream(db.events(), settings)
         // A key that is disabled, revoked or regenerated loses its open event streams at once.
         apiKeys = ApiKeys(db.apiKeys(), settings, db.webhooks(), onAccessReduced = events::closeStreamsOf)
@@ -64,6 +66,19 @@ class GatewayApp : Application() {
         tunnel = CloudflaredTunnel(this, settings)
         cellular = CellularAddresses(this)
         notifier = Notifier(this)
+    }
+
+    /**
+     * Quick tunnels are switched off in this build. If one was in use, turn the tunnel off and
+     * leave a notice for the Status screen, instead of failing to connect without a word.
+     */
+    private fun retireQuickTunnel() {
+        if (BuildConfig.QUICK_TUNNEL_ENABLED || settings.tunnelMode != TunnelMode.QUICK) return
+        if (settings.tunnelEnabled) {
+            settings.tunnelEnabled = false
+            settings.quickTunnelRemovedNotice = true
+        }
+        settings.tunnelMode = TunnelMode.TOKEN
     }
 
     companion object {
