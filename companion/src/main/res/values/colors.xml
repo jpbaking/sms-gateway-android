@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Violet behind the gateway's icon, so the two apps are easy to tell apart. -->
+    <color name="ic_launcher_background">#3B1B66</color>
+    <color name="brand_background">#010C27</color>
+    <color name="brand_green">#5CE07A</color>
+</resources>

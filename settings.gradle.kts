@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "sms-gateway-android"
 include(":app")
+include(":companion")

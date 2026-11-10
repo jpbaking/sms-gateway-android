@@ -71,6 +71,20 @@ flowchart TB
     classDef planned stroke-dasharray: 5 5
 ```
 
+The companion app in `companion/` is a separate Gradle module (`:companion`) and APK: a client
+for the gateway's API that runs on another phone. Build it with
+`./gradlew :companion:assembleDebug :companion:testDebugUnitTest`.
+
+```
+companion/src/main/java/io/github/jpbaking/smsgateway/companion/
+├── CompanionApp.kt      app-wide singletons; connects only while the app is visible
+├── api/                 OkHttp client for the gateway API and event stream, certificate pinning
+├── sync/                in-memory message store, conversation grouping, SIM choice for replies
+├── contacts/            contact names and photos, contact search
+├── data/                settings (URL, encrypted API key, pinned certificate), read state
+└── ui/                  Jetpack Compose screens
+```
+
 The SMS, storage and webhook code doesn't know about HTTP, so another transport, such as the planned
 cloud relay, can sit next to `GatewayServer` without changing it.
 

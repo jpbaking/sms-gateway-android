@@ -56,7 +56,7 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           export VERSION_NAME="${VERSION_NAME#v}"
-          ./gradlew --no-daemon assembleRelease testReleaseUnitTest
+          ./gradlew --no-daemon :app:assembleRelease :app:testReleaseUnitTest
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/sms-gateway-${GITHUB_REF_NAME}.apk"
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
