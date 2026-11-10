@@ -11,6 +11,7 @@ import io.github.jpbaking.smsgateway.data.WebhookEntity
 import io.github.jpbaking.smsgateway.data.WebhookOrigin
 import io.github.jpbaking.smsgateway.server.EventStream
 import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.availableForRead
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
