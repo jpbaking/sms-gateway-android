@@ -103,6 +103,7 @@ class GatewayService : Service() {
         val address = localIpv4Addresses().firstOrNull() ?: "this phone"
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            .setColor(ContextCompat.getColor(this, R.color.brand_green))
             .setContentTitle("SMS gateway running")
             .setContentText("http://$address:$port")
             .setOngoing(true)

@@ -1,4 +1,8 @@
-# SMS Gateway for Android
+<p align="center">
+  <img src="docs/images/icon.png" alt="SMS Gateway icon" width="160">
+</p>
+
+<h1 align="center">SMS Gateway for Android</h1>
 
 **Turn a spare Android phone into an SMS gateway.** Send and receive text messages from your own apps
 over a simple HTTP API, get webhooks for incoming SMS and delivery reports, and choose which SIM
