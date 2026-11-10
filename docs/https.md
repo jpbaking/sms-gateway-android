@@ -28,7 +28,9 @@ clients can't do HTTPS yet.
 | HTTPS on, plain HTTP allowed | both | works |
 
 With **Who can connect** set to **Tunnel only**, HTTPS isn't served at all: no other device can
-connect, and Cloudflare already encrypts the tunnel. In **Local network** mode the HTTPS port
+connect, and Cloudflare already encrypts the tunnel. **Also allow plain HTTP from other devices**
+is locked off there too; to let other devices in, set **Who can connect** to at least
+**Local network**. In **Local network** mode the HTTPS port
 follows the same rules as plain HTTP, and refuses other callers before the TLS handshake. See
 [Who can connect](security.md#who-can-connect).
 

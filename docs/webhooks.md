@@ -141,7 +141,11 @@ the bytes and breaks the signature.
 In the app, under **Settings → Webhooks**, tap **Edit** on the **Webhook retries** card:
 
 - **Retry interval**: the longest wait between attempts. Default 300 seconds (5 minutes).
-- **Give up after**: hours from the first attempt. Default `0`, which retries forever.
+- **Give up after**: hours from the first attempt, from 1 to 720 (30 days). Default 72 hours.
+
+Retries always end. A delivery that could wait forever would still be sent, with the message in
+it, to whoever answers at that URL months later. An install that was set to `0` ("never give up"),
+the old default, now gives up after 72 hours.
 
 While the **phone** has no internet, retries pause and don't count as attempts. Deleting a webhook
 cancels its pending retries. Retries are saved on the phone, so they survive restarts and reboots.

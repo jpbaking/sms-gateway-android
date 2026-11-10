@@ -24,7 +24,8 @@ Android and Google Play Protect are cautious about sideloaded apps that use SMS.
 6. With [HTTPS](https.md) on, other devices can only use `https://` and the HTTPS port (8443 by
    default), unless you allowed plain HTTP too.
 7. Check **Settings → Server → Who can connect**. In **Tunnel only** nothing on the network can
-   connect, and the Status tab shows no local address.
+   connect, and the Status tab shows no local address. If **Tunnel only** is greyed out, turn on
+   the [Cloudflare Tunnel](tunnel.md) and add its token first.
 
 ## Every request returns 403 with an empty body
 

@@ -138,32 +138,53 @@ internal fun ValueRow(label: String, value: String, monospace: Boolean = false) 
     }
 }
 
-/** A switch with a label (and optional detail), for edit forms. */
+/**
+ * A switch with a label (and optional detail), for edit forms. With [enabled] false it can't be
+ * changed; say why in [detail], which stays readable.
+ */
 @Composable
-internal fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, detail: String? = null) {
+internal fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    detail: String? = null,
+    enabled: Boolean = true,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(label)
+            Text(label, color = labelColor(enabled))
             detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
         Spacer(Modifier.width(8.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
 
+/** With [enabled] false the option can't be picked; say why in [detail], which stays readable. */
 @Composable
-internal fun RadioOption(selected: Boolean, title: String, detail: String, onSelect: () -> Unit) {
+internal fun RadioOption(
+    selected: Boolean,
+    title: String,
+    detail: String,
+    enabled: Boolean = true,
+    onSelect: () -> Unit,
+) {
     Row(
-        Modifier.fillMaxWidth().selectable(selected = selected, onClick = onSelect),
+        Modifier.fillMaxWidth().selectable(selected = selected, enabled = enabled, onClick = onSelect),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
+        RadioButton(selected = selected, onClick = onSelect, enabled = enabled)
         Column {
-            Text(title)
+            Text(title, color = labelColor(enabled))
             Text(detail, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
+
+/** The label of a control: dimmed the way Material dims a control that is switched off. */
+@Composable
+private fun labelColor(enabled: Boolean) =
+    MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f)
 
 /** Asks before doing something. [destructive] paints the confirm button red. */
 @Composable

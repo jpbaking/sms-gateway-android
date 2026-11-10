@@ -56,7 +56,7 @@ class WebhookWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
         val delay = nextDelayMillis(attempt, app.settings.webhookRetryIntervalSeconds * 1000L)
         val maxAgeMs = app.settings.webhookRetryMaxHours * 3_600_000L
-        if (maxAgeMs > 0 && System.currentTimeMillis() + delay - firstAttemptAt > maxAgeMs) {
+        if (System.currentTimeMillis() + delay - firstAttemptAt > maxAgeMs) {
             Log.w(TAG, "Webhook $url still failing after ${attempt + 1} attempts, giving up")
             return@withContext Result.failure()
         }
