@@ -21,6 +21,15 @@ Android and Google Play Protect are cautious about sideloaded apps that use SMS.
 4. Try `curl http://<phone-ip>:8080/health` from the computer. If that times out, it's a network
    problem, not an API key problem.
 5. "Could not start on port …" in the app means another app is using that port. Pick another one.
+6. With [HTTPS](https.md) on, other devices can only use `https://` and the HTTPS port (8443 by
+   default), unless you allowed plain HTTP too.
+
+## HTTPS: "certificate verify failed" or "unable to get local issuer certificate"
+
+The client doesn't trust the certificate. For a self-signed one, give the client the certificate
+(`curl --cacert gateway.pem …`); see [HTTPS → Self-signed certificate](https.md#self-signed-certificate).
+For "hostname mismatch" or "doesn't match", connect using a name or IP the certificate lists (shown
+in the app), or generate a new self-signed certificate after the phone's IP changed.
 
 ## It stops working when the screen is off
 

@@ -8,6 +8,7 @@ Start with **Getting started**, then read the other pages as you need them.
 | [API reference](api.md) | Every endpoint, with request and response examples |
 | [Webhooks](webhooks.md) | Getting incoming SMS and delivery status pushed to your server, verifying signatures, retries |
 | [Dual-SIM and multi-SIM](multi-sim.md) | Choosing which SIM sends a message, and telling which SIM received one |
+| [HTTPS](https.md) | Serving the API over HTTPS with a self-signed, pasted or PKCS#12 certificate |
 | [Public access (Cloudflare Tunnel)](tunnel.md) | Reaching the API from the internet, over mobile data, without opening ports |
 | [Security](security.md) | API keys, how secrets are stored, keeping the phone safe on a network |
 | [Troubleshooting](troubleshooting.md) | Install blocks, messages stuck in `sending`, server not reachable, and more |

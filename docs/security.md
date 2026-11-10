@@ -16,13 +16,13 @@
 ```mermaid
 flowchart LR
     K[API keys] -->|SHA-256 hash| DB[(App database)]
-    S[Webhook signing secrets<br/>Secret webhook headers] -->|AES-256-GCM| DB
+    S[Webhook signing secrets<br/>Secret webhook headers<br/>HTTPS private key] -->|AES-256-GCM| DB
     KS[Android Keystore<br/>non-exportable key] -. encrypts / decrypts .-> S
 ```
 
-- **Webhook signing secrets** and headers marked `isSecret` are encrypted with an AES-256 key held
-  in the **Android Keystore**. That key can't be exported from the phone, so a copy of the app's
-  files doesn't reveal the secrets.
+- **Webhook signing secrets**, headers marked `isSecret`, the tunnel token and the **HTTPS private
+  key** are encrypted with an AES-256 key held in the **Android Keystore**. That key can't be
+  exported from the phone, so a copy of the app's files doesn't reveal the secrets.
 - Secret header values are shown as `********` when you list webhooks. The signing secret is only
   returned when the webhook is created.
 - App backups are turned off, so the database isn't copied to cloud backups.
@@ -31,11 +31,13 @@ flowchart LR
 
 ## The network
 
-The server speaks plain **HTTP** on the port you choose, on every network the phone is connected
-to. Treat the phone like any other server:
+By default the server speaks plain **HTTP** on the port you choose, on every network the phone is
+connected to. Treat the phone like any other server:
 
-- **Use a trusted network.** On shared or public Wi-Fi, anyone nearby could see API traffic,
-  including your key.
+- **Turn on [HTTPS](https.md)** so API keys and messages are encrypted on the network. With HTTPS
+  on, plain HTTP only answers on the phone itself unless you allow it.
+- **Use a trusted network.** Over plain HTTP on shared or public Wi-Fi, anyone nearby could see API
+  traffic, including your key.
 - **For access from outside your network, use a VPN** such as Tailscale or WireGuard. Don't
   port-forward the gateway to the internet.
 - Use `https://` webhook URLs when the receiving server is outside your local network.

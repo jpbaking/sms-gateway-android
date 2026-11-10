@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.R
 import io.github.jpbaking.smsgateway.server.GatewayServer
+import io.github.jpbaking.smsgateway.tls.TlsFrontend
 import io.github.jpbaking.smsgateway.ui.MainActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,11 @@ import kotlinx.coroutines.launch
 
 sealed interface ServerState {
     data object Stopped : ServerState
-    data class Running(val port: Int) : ServerState
+    /**
+     * [port] is the plain HTTP port; [httpsPort] is set when HTTPS is on. With [httpLocalOnly],
+     * plain HTTP only answers on 127.0.0.1 (for the tunnel), so other devices must use HTTPS.
+     */
+    data class Running(val port: Int, val httpsPort: Int? = null, val httpLocalOnly: Boolean = false) : ServerState
     data class Error(val message: String) : ServerState
 }
 
@@ -37,6 +42,7 @@ sealed interface ServerState {
 class GatewayService : Service() {
 
     private lateinit var server: GatewayServer
+    private var tls: TlsFrontend? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
@@ -53,18 +59,38 @@ class GatewayService : Service() {
             return START_NOT_STICKY
         }
         val app = application as GatewayApp
-        val port = app.settings.port
-        goForeground(port)
+        val settings = app.settings
+        val port = settings.port
+        val httpsPort = settings.httpsPort.takeIf { settings.httpsEnabled }
+        val httpLocalOnly = httpsPort != null && !settings.httpOnLan
+        goForeground(port, httpsPort, httpLocalOnly)
         if (!server.isRunning) {
             try {
-                server.start(port)
+                // Read the certificate first, so a bad one doesn't leave plain HTTP running alone.
+                val material = httpsPort?.let {
+                    settings.tlsMaterial()
+                        ?: throw IllegalStateException("HTTPS is on, but no certificate is set up")
+                }
+                server.start(port, host = if (httpLocalOnly) "127.0.0.1" else "0.0.0.0")
+                if (material != null && httpsPort != null) {
+                    tls = TlsFrontend(
+                        sslContext = material.sslContext(),
+                        port = httpsPort,
+                        backendPort = port,
+                        onError = { message, e -> Log.w(TAG, message, e) },
+                    ).also { it.start() }
+                }
                 acquireLocks()
-                _state.value = ServerState.Running(port)
+                _state.value = ServerState.Running(port, httpsPort, httpLocalOnly)
                 resendQueued(app)
                 app.tunnel.setServerRunning(true, port)
             } catch (e: Exception) {
-                Log.e(TAG, "Could not start server on port $port", e)
-                _state.value = ServerState.Error("Could not start on port $port: ${e.message}")
+                Log.e(TAG, "Could not start server", e)
+                val ports = listOfNotNull(port, httpsPort).joinToString(" and ")
+                _state.value = ServerState.Error("Could not start on port $ports: ${e.message}")
+                tls?.stop()
+                tls = null
+                server.stop()
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -74,6 +100,8 @@ class GatewayService : Service() {
 
     override fun onDestroy() {
         (application as GatewayApp).tunnel.setServerRunning(false)
+        tls?.stop()
+        tls = null
         server.stop()
         releaseLocks()
         if (_state.value is ServerState.Running) _state.value = ServerState.Stopped
@@ -91,7 +119,7 @@ class GatewayService : Service() {
         }
     }
 
-    private fun goForeground(port: Int) {
+    private fun goForeground(port: Int, httpsPort: Int?, httpLocalOnly: Boolean) {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW),
@@ -107,7 +135,12 @@ class GatewayService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(ContextCompat.getColor(this, R.color.brand_green))
             .setContentTitle("SMS gateway running")
-            .setContentText("http://$address:$port")
+            .setContentText(
+                listOfNotNull(
+                    httpsPort?.let { "https://$address:$it" },
+                    "http://$address:$port".takeUnless { httpLocalOnly },
+                ).joinToString("  "),
+            )
             .setOngoing(true)
             .setContentIntent(openApp)
             .addAction(0, "Stop", stop)

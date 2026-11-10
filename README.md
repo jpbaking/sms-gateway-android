@@ -73,6 +73,7 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
 - [API reference](docs/api.md)
 - [Webhooks](docs/webhooks.md): events, payloads, signature verification, retries
 - [Dual-SIM and multi-SIM](docs/multi-sim.md)
+- [HTTPS](docs/https.md): self-signed, pasted PEM, or PKCS#12 certificate
 - [Public access (Cloudflare Tunnel)](docs/tunnel.md)
 - [Security](docs/security.md)
 - [Troubleshooting](docs/troubleshooting.md)
@@ -83,7 +84,8 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
   SMS apps.
 - **The phone must be reachable** from your systems: the same network, a VPN such as Tailscale, or
   the built-in [Cloudflare Tunnel](docs/tunnel.md) for a public HTTPS URL.
-- The API is plain HTTP on your network. Read [Security](docs/security.md) before exposing it.
+- The API is plain HTTP on your network unless you turn on [HTTPS](docs/https.md). Read
+  [Security](docs/security.md) before exposing it.
 - SMS costs whatever your carrier charges. Check your plan before sending in bulk.
 
 ## Roadmap
