@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.TlsSource
+import io.github.jpbaking.smsgateway.data.TunnelMode
 import io.github.jpbaking.smsgateway.service.GatewayService
 import io.github.jpbaking.smsgateway.service.localIpv4Addresses
 import io.github.jpbaking.smsgateway.tls.TlsMaterial
@@ -44,67 +46,100 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
 
-/** HTTPS settings: on/off, port, and the certificate (self-signed, pasted PEM, or a PKCS#12 file). */
+/**
+ * The Server page: ports, start on boot and HTTPS in one card, so HTTP and HTTPS are edited (and
+ * restarted) together, then the HTTPS certificate.
+ */
 @Composable
-fun HttpsSection(app: GatewayApp, running: Boolean) {
+fun ServerSection(app: GatewayApp, running: Boolean) {
     // Bumped after the certificate changes, to re-read it.
     var certVersion by remember { mutableIntStateOf(0) }
     val material = remember(certVersion) { app.settings.tlsMaterial() }
     val source = remember(certVersion) { app.settings.tlsSource }
 
-    HttpsOptions(app, running, hasCertificate = material != null)
+    ServerOptions(app, running, hasCertificate = material != null)
     CertificateCard(app, running, material, source, onChanged = { certVersion++ })
 }
 
+/** Why plain HTTP stays on with HTTPS, and who can reach it. */
 @Composable
-private fun HttpsOptions(app: GatewayApp, running: Boolean, hasCertificate: Boolean) {
+private fun PlainHttpExplainer(httpOnLan: Boolean) {
+    Text(
+        "Plain HTTP is still needed with HTTPS on: HTTPS and the Cloudflare Tunnel connect to it on this " +
+            "phone. " + if (httpOnLan) {
+                "Because \"Also allow plain HTTP from other devices\" is on, other devices can reach it too."
+            } else {
+                "Other devices can't reach it unless \"Also allow plain HTTP from other devices\" is on."
+            },
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boolean) {
     val context = LocalContext.current
     val settings = app.settings
     var editing by rememberSaveable { mutableStateOf(false) }
-    var enabled by rememberSaveable { mutableStateOf(settings.httpsEnabled) }
-    var port by rememberSaveable { mutableStateOf(settings.httpsPort.toString()) }
+    var port by rememberSaveable { mutableStateOf(settings.port.toString()) }
+    var autoStart by rememberSaveable { mutableStateOf(settings.autoStart) }
+    var httpsEnabled by rememberSaveable { mutableStateOf(settings.httpsEnabled) }
+    var httpsPort by rememberSaveable { mutableStateOf(settings.httpsPort.toString()) }
     var httpOnLan by rememberSaveable { mutableStateOf(settings.httpOnLan) }
     var pending by remember { mutableStateOf<PendingChange?>(null) }
 
     fun reset() {
-        enabled = settings.httpsEnabled
-        port = settings.httpsPort.toString()
+        port = settings.port.toString()
+        autoStart = settings.autoStart
+        httpsEnabled = settings.httpsEnabled
+        httpsPort = settings.httpsPort.toString()
         httpOnLan = settings.httpOnLan
     }
 
     EditableSection(
-        title = "HTTPS",
+        title = "Server",
         editing = editing,
         onEditingChange = { editing = it },
-        dirty = enabled != settings.httpsEnabled ||
-            port != settings.httpsPort.toString() ||
+        dirty = port != settings.port.toString() ||
+            autoStart != settings.autoStart ||
+            httpsEnabled != settings.httpsEnabled ||
+            httpsPort != settings.httpsPort.toString() ||
             httpOnLan != settings.httpOnLan,
         onDiscard = ::reset,
         onSave = save@{
-            val newPort = if (enabled) {
-                port.toIntOrNull()?.takeIf { it in 1024..65535 }
+            val newPort = port.toIntOrNull()?.takeIf { it in 1024..65535 }
+                ?: return@save "The HTTP port must be between 1024 and 65535."
+            val newHttpsPort = if (httpsEnabled) {
+                httpsPort.toIntOrNull()?.takeIf { it in 1024..65535 }
                     ?: return@save "The HTTPS port must be between 1024 and 65535."
             } else {
                 settings.httpsPort
             }
-            if (enabled && newPort == settings.port) return@save "That's the HTTP port. Pick a different one."
-            if (enabled && !hasCertificate) return@save "Set up a certificate below first."
+            if (httpsEnabled && newHttpsPort == newPort) return@save "HTTP and HTTPS need different ports."
+            if (httpsEnabled && !hasCertificate) return@save "Set up a certificate below before turning HTTPS on."
 
             // What changes for clients, for the confirmation.
             val effects = buildList {
-                if (enabled && !settings.httpsEnabled) add("HTTPS starts on port $newPort.")
-                if (!enabled && settings.httpsEnabled) add("HTTPS stops; clients using https:// lose access.")
-                if (enabled && settings.httpsEnabled && newPort != settings.httpsPort) {
-                    add("HTTPS moves from port ${settings.httpsPort} to $newPort.")
+                if (newPort != settings.port) {
+                    add("Plain HTTP moves from port ${settings.port} to $newPort.")
+                    if (settings.tunnelEnabled && settings.tunnelMode == TunnelMode.TOKEN) {
+                        add("In the Cloudflare dashboard, point your tunnel at http://localhost:$newPort.")
+                    }
+                }
+                if (httpsEnabled && !settings.httpsEnabled) add("HTTPS starts on port $newHttpsPort.")
+                if (!httpsEnabled && settings.httpsEnabled) add("HTTPS stops; clients using https:// lose access.")
+                if (httpsEnabled && settings.httpsEnabled && newHttpsPort != settings.httpsPort) {
+                    add("HTTPS moves from port ${settings.httpsPort} to $newHttpsPort.")
                 }
                 val lanBefore = !settings.httpsEnabled || settings.httpOnLan
-                val lanAfter = !enabled || httpOnLan
+                val lanAfter = !httpsEnabled || httpOnLan
                 if (lanBefore && !lanAfter) add("Plain HTTP stops answering other devices (the tunnel still works).")
                 if (!lanBefore && lanAfter) add("Plain HTTP answers other devices again.")
             }
             val commit = {
-                settings.httpsEnabled = enabled
-                settings.httpsPort = newPort
+                settings.port = newPort
+                settings.autoStart = autoStart
+                settings.httpsEnabled = httpsEnabled
+                settings.httpsPort = newHttpsPort
                 settings.httpOnLan = httpOnLan
                 if (running && effects.isNotEmpty()) GatewayService.restart(context)
                 editing = false
@@ -123,32 +158,61 @@ private fun HttpsOptions(app: GatewayApp, running: Boolean, hasCertificate: Bool
             null
         },
         view = {
-            Text(
-                "Serves the API over HTTPS so API keys and messages are encrypted on the network.",
-                style = MaterialTheme.typography.bodySmall,
-            )
+            ValueRow("HTTP port", settings.port.toString(), monospace = true)
+            if (settings.httpsEnabled) {
+                ValueRow("Plain HTTP from other devices", if (settings.httpOnLan) "Allowed" else "Blocked")
+                PlainHttpExplainer(settings.httpOnLan)
+            }
+            ValueRow("Start on boot", onOff(settings.autoStart))
+            HorizontalDivider()
             ValueRow("Serve HTTPS", onOff(settings.httpsEnabled))
             if (settings.httpsEnabled) {
                 ValueRow("HTTPS port", settings.httpsPort.toString(), monospace = true)
-                ValueRow("Plain HTTP from other devices", if (settings.httpOnLan) "Allowed" else "Blocked")
+            } else {
+                Text(
+                    "Turn on HTTPS to encrypt API keys and messages on the network.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         },
         edit = {
-            SwitchRow("Serve HTTPS", enabled, { enabled = it })
-            if (enabled) {
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { port = digits(it) },
-                    label = { Text("HTTPS port") },
-                    supportingText = { Text("1024 to 65535, different from the HTTP port") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
+            OutlinedTextField(
+                value = port,
+                onValueChange = { port = digits(it) },
+                label = { Text("HTTP port") },
+                supportingText = { Text("1024 to 65535") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+            if (httpsEnabled) {
                 SwitchRow(
                     "Also allow plain HTTP from other devices",
                     httpOnLan,
                     { httpOnLan = it },
-                    detail = "When off, plain HTTP only answers on this phone (the Cloudflare Tunnel still works).",
+                )
+                PlainHttpExplainer(httpOnLan)
+            }
+            SwitchRow(
+                "Start on boot",
+                autoStart,
+                { autoStart = it },
+                detail = "Brings the server back after a reboot or app update.",
+            )
+            HorizontalDivider()
+            SwitchRow(
+                "Serve HTTPS",
+                httpsEnabled,
+                { httpsEnabled = it },
+                detail = "Encrypts API keys and messages on the network.",
+            )
+            if (httpsEnabled) {
+                OutlinedTextField(
+                    value = httpsPort,
+                    onValueChange = { httpsPort = digits(it) },
+                    label = { Text("HTTPS port") },
+                    supportingText = { Text("1024 to 65535, different from the HTTP port") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
             }
         },
