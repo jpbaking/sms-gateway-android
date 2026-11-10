@@ -31,6 +31,11 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_RETRY_MAX_HOURS, 0)
         set(value) = prefs.edit().putInt(KEY_RETRY_MAX_HOURS, value).apply()
 
+    /** Messages older than this many days are deleted by the daily cleanup. 0 keeps them forever. */
+    var messageRetentionDays: Int
+        get() = prefs.getInt(KEY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS)
+        set(value) = prefs.edit().putInt(KEY_RETENTION_DAYS, value).apply()
+
     companion object {
         const val DEFAULT_PORT = 8080
         private const val KEY_PORT = "port"
@@ -39,6 +44,8 @@ class Settings(context: Context) {
         private const val KEY_AUTO_START = "auto_start"
         private const val KEY_RETRY_INTERVAL = "webhook_retry_interval_s"
         private const val KEY_RETRY_MAX_HOURS = "webhook_retry_max_hours"
+        private const val KEY_RETENTION_DAYS = "message_retention_days"
+        const val DEFAULT_RETENTION_DAYS = 30
 
         fun randomToken(bytes: Int = 24): String {
             val buf = ByteArray(bytes)

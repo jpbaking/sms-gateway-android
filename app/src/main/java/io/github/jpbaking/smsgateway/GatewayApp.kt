@@ -4,6 +4,7 @@ import android.app.Application
 import io.github.jpbaking.smsgateway.data.ApiKeys
 import io.github.jpbaking.smsgateway.data.AppDatabase
 import io.github.jpbaking.smsgateway.data.Settings
+import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
 import io.github.jpbaking.smsgateway.sms.SimRepository
 import io.github.jpbaking.smsgateway.sms.SmsSender
 import io.github.jpbaking.smsgateway.webhook.WebhookDispatcher
@@ -42,6 +43,7 @@ class GatewayApp : Application() {
         settings = Settings(this)
         apiKeys = ApiKeys(db.apiKeys(), settings)
         scope.launch { apiKeys.migrateLegacyKey() }
+        CleanupWorker.schedule(this)
         sims = SimRepository(this)
         webhooks = WebhookDispatcher(this, db.webhooks())
         sender = SmsSender(this, db.messages(), webhooks)
