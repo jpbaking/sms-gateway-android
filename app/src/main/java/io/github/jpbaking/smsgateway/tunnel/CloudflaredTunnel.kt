@@ -5,6 +5,7 @@ import android.util.Log
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.data.TunnelMode
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 sealed interface TunnelState {
@@ -50,7 +52,14 @@ sealed interface TunnelState {
  */
 class CloudflaredTunnel(private val context: Context, private val settings: Settings) {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // A bug in the tunnel code shouldn't take the SMS gateway down with it: log it instead.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e ->
+            Log.e(TAG, "Tunnel failed", e)
+            appendLog("Tunnel error: $e")
+            _state.value = TunnelState.Reconnecting("internal error, turn the tunnel off and on")
+        },
+    )
     private val lock = Mutex()
     private var job: Job? = null
     private var port = Settings.DEFAULT_PORT
@@ -172,29 +181,35 @@ class CloudflaredTunnel(private val context: Context, private val settings: Sett
             var lastError: String? = null
             val reader = launch(Dispatchers.IO) {
                 val connections = mutableSetOf<Int>()
-                process.inputStream.bufferedReader().useLines { lines ->
-                    for (line in lines) {
-                        appendLog(line)
-                        when (val event = TunnelLog.parse(line)) {
-                            is LogEvent.Registered -> {
-                                connections += event.connIndex
-                                connectedThisRun = true
-                                lastRegisteredAt = System.currentTimeMillis()
-                                _state.value = TunnelState.Connected(connections.size)
-                            }
-                            is LogEvent.Dropped -> {
-                                event.connIndex?.let { connections -= it }
-                                _state.value = if (connections.isEmpty()) {
-                                    TunnelState.Reconnecting("connection to Cloudflare lost")
-                                } else {
-                                    TunnelState.Connected(connections.size)
+                // Stopping cloudflared closes its output stream under this reader, so a read
+                // can fail with "Stream closed". That just means the process is gone.
+                try {
+                    process.inputStream.bufferedReader().useLines { lines ->
+                        for (line in lines) {
+                            appendLog(line)
+                            when (val event = TunnelLog.parse(line)) {
+                                is LogEvent.Registered -> {
+                                    connections += event.connIndex
+                                    connectedThisRun = true
+                                    lastRegisteredAt = System.currentTimeMillis()
+                                    _state.value = TunnelState.Connected(connections.size)
                                 }
+                                is LogEvent.Dropped -> {
+                                    event.connIndex?.let { connections -= it }
+                                    _state.value = if (connections.isEmpty()) {
+                                        TunnelState.Reconnecting("connection to Cloudflare lost")
+                                    } else {
+                                        TunnelState.Connected(connections.size)
+                                    }
+                                }
+                                is LogEvent.QuickTunnelUrl -> _quickUrl.value = event.url
+                                is LogEvent.Error -> lastError = event.message
+                                null -> Unit
                             }
-                            is LogEvent.QuickTunnelUrl -> _quickUrl.value = event.url
-                            is LogEvent.Error -> lastError = event.message
-                            null -> Unit
                         }
                     }
+                } catch (e: IOException) {
+                    Log.d(TAG, "cloudflared output closed: ${e.message}")
                 }
             }
             val exit = async(Dispatchers.IO) { process.waitFor() }
