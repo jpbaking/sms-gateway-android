@@ -1,3 +1,9 @@
 <resources>
-    <style name="Theme.SmsGateway" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Dark, so the window behind Compose matches the brand colours instead of flashing white. -->
+    <style name="Theme.SmsGateway" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/brand_background</item>
+        <item name="android:statusBarColor">@color/brand_background</item>
+        <item name="android:navigationBarColor">@color/brand_background</item>
+        <item name="android:colorAccent">@color/brand_green</item>
+    </style>
 </resources>
