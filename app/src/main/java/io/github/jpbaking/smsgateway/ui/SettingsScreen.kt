@@ -280,7 +280,8 @@ private fun RegisteredWebhooks(app: GatewayApp) {
                     val headers = hook.storedHeaders()
                     Text(
                         "Added ${formatDateTime(hook.createdAt)}" +
-                            (if (headers.isNotEmpty()) "  ·  headers: ${headers.joinToString(", ") { it.key }}" else ""),
+                            (if (headers.isNotEmpty()) "  ·  headers: ${headers.joinToString(", ") { it.key }}" else "") +
+                            (if (hook.insecure) "  ·  certificate not checked" else ""),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

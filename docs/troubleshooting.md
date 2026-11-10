@@ -64,6 +64,8 @@ accepted the message.
   on that event.
 - Failed calls are retried. With the default settings they come within about 5 minutes once your
   server is back. See [Retries](webhooks.md#retries).
+- `https://` server with a self-signed or dev/test certificate? The phone rejects it. Register the
+  webhook with `"insecure": true`, or give the server a certificate the phone trusts.
 - `GET /api/v1/messages?direction=in` lists everything received, whatever happened to the webhooks.
 
 ## The database is getting big

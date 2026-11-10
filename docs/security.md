@@ -41,6 +41,9 @@ connected to. Treat the phone like any other server:
 - **For access from outside your network, use a VPN** such as Tailscale or WireGuard. Don't
   port-forward the gateway to the internet.
 - Use `https://` webhook URLs when the receiving server is outside your local network.
+- Keep `"insecure": false` (the default) on webhooks. `true` skips certificate checks for that
+  webhook, so anyone on the network path could receive its deliveries. Use it for dev/test servers
+  with self-signed certificates only.
 - Revoke keys you no longer use.
 
 ## Webhook signatures

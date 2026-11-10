@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [MessageEntity::class, WebhookEntity::class, ApiKeyEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,8 +20,15 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "gateway.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
+
+        /** v3: per-webhook opt-out of TLS certificate checks. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE webhooks ADD COLUMN insecure INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         /** v2: extra webhook headers, named API keys, and which key sent each message. */
         private val MIGRATION_1_2 = object : Migration(1, 2) {

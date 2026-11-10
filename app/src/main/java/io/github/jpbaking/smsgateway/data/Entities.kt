@@ -1,5 +1,6 @@
 package io.github.jpbaking.smsgateway.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -64,6 +65,11 @@ data class WebhookEntity(
     val createdAt: Long,
     /** JSON list of [StoredHeader], or null for none. Secret values are encrypted with [SecretBox]. */
     val headers: String? = null,
+    /**
+     * Skip TLS certificate and hostname checks when delivering to this webhook, for self-signed
+     * dev/test servers. Only affects `https://` URLs.
+     */
+    @ColumnInfo(defaultValue = "0") val insecure: Boolean = false,
 ) {
     fun storedHeaders(): List<StoredHeader> = headers?.let { StoredHeader.decode(it) }.orEmpty()
 }
