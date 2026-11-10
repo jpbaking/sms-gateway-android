@@ -39,7 +39,7 @@ incoming SMS, but it can't send real ones.
 app/src/main/java/io/github/jpbaking/smsgateway/
 ├── GatewayApp.kt        app-wide singletons (database, settings, SMS, webhooks)
 ├── data/                Room database, DAOs, settings, API keys, SecretBox (Keystore encryption)
-├── server/              Ktor HTTP API (GatewayServer) and its JSON types (Dto)
+├── server/              Ktor HTTP API (GatewayServer), its JSON types (Dto), and the SSE EventStream
 ├── service/             foreground service that keeps the server alive, boot receiver
 ├── tunnel/              runs the bundled cloudflared, restarts it on network changes and crashes
 ├── sms/                 sending per SIM, receiving, sent/delivered callbacks, SIM listing

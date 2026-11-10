@@ -106,3 +106,26 @@ interface ApiKeyDao {
     @Query("DELETE FROM api_keys WHERE id = :id")
     suspend fun delete(id: String): Int
 }
+
+@Dao
+interface EventDao {
+    @Insert
+    suspend fun insert(event: EventEntity): Long
+
+    /** Events after [seq], oldest first. */
+    @Query("SELECT * FROM events WHERE seq > :seq ORDER BY seq LIMIT :limit")
+    suspend fun after(seq: Long, limit: Int): List<EventEntity>
+
+    @Query("SELECT MAX(seq) FROM events")
+    suspend fun maxSeq(): Long?
+
+    @Query("SELECT MIN(seq) FROM events")
+    suspend fun minSeq(): Long?
+
+    @Query("DELETE FROM events WHERE createdAt < :cutoff")
+    suspend fun deleteOlderThan(cutoff: Long): Int
+
+    /** Keeps only the newest [keep] events. */
+    @Query("DELETE FROM events WHERE seq <= (SELECT MAX(seq) FROM events) - :keep")
+    suspend fun trimTo(keep: Int): Int
+}

@@ -5,6 +5,7 @@ import io.github.jpbaking.smsgateway.data.ApiKeys
 import io.github.jpbaking.smsgateway.data.AppDatabase
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
+import io.github.jpbaking.smsgateway.server.EventStream
 import io.github.jpbaking.smsgateway.sms.SimRepository
 import io.github.jpbaking.smsgateway.sms.SmsSender
 import io.github.jpbaking.smsgateway.tunnel.CloudflaredTunnel
@@ -34,6 +35,8 @@ class GatewayApp : Application() {
         private set
     lateinit var webhooks: WebhookDispatcher
         private set
+    lateinit var events: EventStream
+        private set
     lateinit var sender: SmsSender
         private set
     lateinit var tunnel: CloudflaredTunnel
@@ -48,7 +51,8 @@ class GatewayApp : Application() {
         scope.launch { apiKeys.migrateLegacyKey() }
         CleanupWorker.schedule(this)
         sims = SimRepository(this)
-        webhooks = WebhookDispatcher(this, db.webhooks())
+        events = EventStream(db.events(), settings)
+        webhooks = WebhookDispatcher(this, db.webhooks(), events)
         sender = SmsSender(this, db.messages(), webhooks)
         tunnel = CloudflaredTunnel(this, settings)
     }

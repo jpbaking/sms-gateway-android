@@ -64,6 +64,11 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_TUNNEL_HOSTNAME, "") ?: ""
         set(value) = prefs.edit().putString(KEY_TUNNEL_HOSTNAME, value.trim()).apply()
 
+    /** Whether `GET /api/v1/events` (Server-Sent Events) is served. Off by default: 404 when off. */
+    var eventStreamEnabled: Boolean
+        get() = prefs.getBoolean(KEY_EVENT_STREAM, false)
+        set(value) = prefs.edit().putBoolean(KEY_EVENT_STREAM, value).apply()
+
     /** Whether the server also listens for HTTPS on [httpsPort]. */
     var httpsEnabled: Boolean
         get() = prefs.getBoolean(KEY_HTTPS_ENABLED, false)
@@ -110,6 +115,7 @@ class Settings(context: Context) {
     companion object {
         const val DEFAULT_PORT = 8080
         const val DEFAULT_HTTPS_PORT = 8443
+        private const val KEY_EVENT_STREAM = "event_stream_enabled"
         private const val KEY_HTTPS_ENABLED = "https_enabled"
         private const val KEY_HTTPS_PORT = "https_port"
         private const val KEY_HTTP_ON_LAN = "http_on_lan"

@@ -38,6 +38,7 @@ import io.github.jpbaking.smsgateway.R
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.data.WebhookEntity
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
+import io.github.jpbaking.smsgateway.server.EventStream
 import io.github.jpbaking.smsgateway.service.GatewayService
 import io.github.jpbaking.smsgateway.service.ServerState
 import kotlinx.coroutines.delay
@@ -50,6 +51,7 @@ internal enum class SettingsPage(val title: String, val summary: String) {
     TUNNEL("Public access", "Cloudflare Tunnel"),
     API_KEYS("API keys", "Who may use the API"),
     WEBHOOKS("Webhooks", "Retries, registered webhooks"),
+    EVENT_STREAM("Event stream", "Live events for client apps (SSE)"),
     STORAGE("Storage", "How long messages are kept"),
     ABOUT("About", "Version"),
 }
@@ -91,6 +93,7 @@ internal fun SettingsPageContent(app: GatewayApp, page: SettingsPage, padding: P
                 WebhookRetrySettings(app)
                 RegisteredWebhooks(app)
             }
+            SettingsPage.EVENT_STREAM -> EventStreamSettings(app)
             SettingsPage.STORAGE -> StorageSettings(app)
             SettingsPage.ABOUT -> Section("About") {
                 ValueRow("Version", BuildConfig.VERSION_NAME)
@@ -175,6 +178,76 @@ private fun WebhookRetrySettings(app: GatewayApp) {
             )
         },
     )
+}
+
+@Composable
+private fun EventStreamSettings(app: GatewayApp) {
+    val stream = app.events
+    val enabled by stream.enabled.collectAsStateWithLifecycle()
+    val clients by stream.clients.collectAsStateWithLifecycle()
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var on by rememberSaveable { mutableStateOf(enabled) }
+    var pending by remember { mutableStateOf<PendingChange?>(null) }
+
+    EditableSection(
+        title = "Event stream",
+        editing = editing,
+        onEditingChange = { editing = it },
+        dirty = on != enabled,
+        onDiscard = { on = enabled },
+        onSave = save@{
+            if (on == enabled) {
+                editing = false
+                return@save null
+            }
+            val commit = {
+                stream.setEnabled(on)
+                editing = false
+            }
+            pending = if (on) {
+                PendingChange(
+                    title = "Turn on the event stream?",
+                    text = "GET /api/v1/events starts answering. Any valid API key can then follow every " +
+                        "incoming SMS and status update live.\n\nFrom now on, events are also kept in the " +
+                        "database (as long as messages, at most ${EventStream.MAX_KEPT}) so clients can catch up " +
+                        "after a dropped connection.",
+                    confirmLabel = "Turn on",
+                    commit = commit,
+                )
+            } else {
+                PendingChange(
+                    title = "Turn off the event stream?",
+                    text = (if (clients > 0) "$clients connected client${if (clients == 1) " is" else "s are"} " +
+                        "disconnected. " else "") +
+                        "GET /api/v1/events answers 404 until you turn it on again, and new events are no " +
+                        "longer kept for it.",
+                    confirmLabel = "Turn off",
+                    commit = commit,
+                )
+            }
+            null
+        },
+        view = {
+            Text(
+                "Server-Sent Events at GET /api/v1/events: the same events webhooks get, pushed live to " +
+                    "apps that keep a connection open, such as a client app on another phone. " +
+                    "Needs an API key.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            ValueRow("Serve the event stream", onOff(enabled))
+            if (enabled) ValueRow("Connected clients", clients.toString())
+        },
+        edit = {
+            SwitchRow(
+                "Serve the event stream",
+                on,
+                { on = it },
+                detail = "When off, the endpoint isn't served (404).",
+            )
+        },
+    )
+
+    PendingChangeDialog(pending) { pending = null }
 }
 
 /** Read-only: webhooks are added and removed through the API. */

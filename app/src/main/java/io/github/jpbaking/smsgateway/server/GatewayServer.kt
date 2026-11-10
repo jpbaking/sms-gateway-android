@@ -11,6 +11,7 @@ import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.data.StoredHeader
 import io.github.jpbaking.smsgateway.data.WebhookEntity
 import io.github.jpbaking.smsgateway.webhook.WebhookEvent
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -23,13 +24,16 @@ import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receive
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.net.URI
 import java.util.UUID
@@ -127,6 +131,40 @@ class GatewayServer(private val app: GatewayApp) {
                     val message = app.db.messages().get(call.parameters["id"].orEmpty())
                         ?: return@get call.respond(HttpStatusCode.NotFound, ErrorDto("Message not found"))
                     call.respond(MessageDto.from(message))
+                }
+
+                get("/events") {
+                    // Off means not served at all: the same bare 404 as an unknown path, before
+                    // the key is even checked.
+                    if (!app.events.enabled.value) return@get call.respond(HttpStatusCode.NotFound)
+                    authorized() ?: return@get
+                    val lastId = call.request.headers["Last-Event-ID"] ?: call.request.queryParameters["lastEventId"]
+                    val lastEventId = when {
+                        lastId.isNullOrBlank() -> null
+                        else -> lastId.trim().toLongOrNull()?.takeIf { it >= 0 }
+                            ?: return@get badRequest("'Last-Event-ID' must be an event id")
+                    }
+                    val events = call.request.queryParameters["events"]
+                        ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+                        ?.takeIf { it.isNotEmpty() }
+                    val unknown = events.orEmpty().filter { WebhookEvent.fromWireName(it) == null }
+                    if (unknown.isNotEmpty()) {
+                        return@get badRequest(
+                            "Unknown events: $unknown. Valid: ${WebhookEvent.entries.map { it.wireName }}",
+                        )
+                    }
+                    call.response.header(HttpHeaders.CacheControl, "no-cache")
+                    // Asks reverse proxies not to buffer the stream.
+                    call.response.header("X-Accel-Buffering", "no")
+                    call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
+                        try {
+                            app.events.serve(this, lastEventId, events)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // The client went away; nothing to answer.
+                        }
+                    }
                 }
 
                 get("/webhooks") {

@@ -17,8 +17,8 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /**
- * Daily housekeeping: deletes messages past the retention period, then compacts the database
- * when enough space was freed to be worth it.
+ * Daily housekeeping: deletes messages (and stored event stream events) past the retention
+ * period, then compacts the database when enough space was freed to be worth it.
  *
  * SQLite doesn't give space back to the filesystem when rows are deleted; the freed pages are
  * only reused for new rows. VACUUM rewrites the file to actually shrink it, but it rewrites the
@@ -34,8 +34,9 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         } else {
             0
         }
+        val events = app.events.cleanup(days)
         val vacuumed = compactIfWorthIt(app.db)
-        Log.i(TAG, "Cleanup: deleted $deleted messages older than $days days, vacuumed=$vacuumed")
+        Log.i(TAG, "Cleanup: deleted $deleted messages older than $days days, $events events, vacuumed=$vacuumed")
         Result.success()
     }
 

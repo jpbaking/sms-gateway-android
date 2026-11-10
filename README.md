@@ -17,6 +17,7 @@ sends each message. Everything runs on the phone: no cloud service, no subscript
 
 - 📤 **Send SMS** with one HTTP call. Long messages are split and joined automatically
 - 📥 **Receive SMS** as webhooks, signed with HMAC-SHA256 and retried until your server is back
+- 📡 **Optional live event stream** (Server-Sent Events) with replay after a dropped connection, for client apps
 - 📶 **Dual-SIM and multi-SIM**: pick the SIM per message, and see which SIM received each one
 - ✅ **Delivery tracking**: `queued` → `sent` → `delivered` (or `failed`, with the reason)
 - 🔑 **Named API keys**: one per app, shown once, stored hashed, revocable, and recorded on every message
@@ -72,6 +73,7 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
 - [Getting started](docs/getting-started.md)
 - [API reference](docs/api.md)
 - [Webhooks](docs/webhooks.md): events, payloads, signature verification, retries
+- [Event stream (SSE)](docs/events.md): live events for client apps, off by default
 - [Dual-SIM and multi-SIM](docs/multi-sim.md)
 - [HTTPS](docs/https.md): self-signed, pasted PEM, or PKCS#12 certificate
 - [Public access (Cloudflare Tunnel)](docs/tunnel.md)
