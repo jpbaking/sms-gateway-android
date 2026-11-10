@@ -56,3 +56,17 @@ class TunnelLogTest {
         assertEquals(listOf(2L, 2L, 4L, 8L, 16L, 32L, 60L, 60L), (0..7).map { restartDelayMillis(it) / 1000 })
     }
 }
+
+class EdgeAddressesTest {
+    private fun ip(s: String) = java.net.InetAddress.getByName(s)
+
+    @Test
+    fun alternatesRegionsAndPutsIpv4First() {
+        val r1 = listOf(ip("2606:4700:a0::1"), ip("198.41.192.7"), ip("198.41.192.27"))
+        val r2 = listOf(ip("198.41.200.13"))
+        assertEquals(
+            listOf("198.41.192.7:7844", "198.41.200.13:7844", "198.41.192.27:7844", "[2606:4700:a0:0:0:0:0:1]:7844"),
+            io.github.jpbaking.smsgateway.tunnel.EdgeAddresses.interleave(r1, r2),
+        )
+    }
+}

@@ -238,6 +238,12 @@ class CloudflaredTunnel(private val context: Context, private val settings: Sett
     private fun spawn(mode: TunnelMode, token: String?, port: Int): Process {
         val home = File(context.filesDir, "cloudflared").apply { mkdirs() }
         val args = mutableListOf(binary.path, "tunnel", "--no-autoupdate", "--grace-period", "1s")
+        val edges = EdgeAddresses.resolve()
+        if (edges.isEmpty()) {
+            appendLog("Could not look up Cloudflare's tunnel servers; letting cloudflared try")
+        } else {
+            edges.forEach { args += listOf("--edge", it) }
+        }
         when (mode) {
             TunnelMode.TOKEN -> args += "run"
             TunnelMode.QUICK -> args += listOf("--url", "http://127.0.0.1:$port")
