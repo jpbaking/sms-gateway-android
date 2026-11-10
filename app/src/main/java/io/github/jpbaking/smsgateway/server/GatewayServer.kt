@@ -1,5 +1,6 @@
 package io.github.jpbaking.smsgateway.server
 
+import android.util.Log
 import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.ApiKeyEntity
@@ -73,12 +74,17 @@ class GatewayServer(private val app: GatewayApp) {
                 call.respond(HttpStatusCode.BadRequest, ErrorDto(cause.message ?: "Bad request"))
             }
             exception<Throwable> { call, cause ->
-                call.respond(HttpStatusCode.InternalServerError, ErrorDto(cause.message ?: "Internal error"))
+                // The detail stays on the phone: it can name tables, files or internal state.
+                Log.e(TAG, "Request failed", cause)
+                call.respond(HttpStatusCode.InternalServerError, ErrorDto("Internal error"))
             }
         }
 
         routing {
+            // Without a key: a bare 200, enough to tell the server is up. Details need a valid key.
             get("/health") {
+                if (presentedKey() == null) return@get call.respond(HttpStatusCode.OK)
+                authorized() ?: return@get
                 call.respond(HealthDto("ok", BuildConfig.VERSION_NAME))
             }
 
@@ -318,6 +324,7 @@ class GatewayServer(private val app: GatewayApp) {
     }
 
     private companion object {
+        const val TAG = "GatewayServer"
         const val MAX_HEADERS = 20
 
         // RFC 9110 token characters.
