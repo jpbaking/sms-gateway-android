@@ -59,6 +59,11 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        // Robolectric (the database migration test) needs the merged manifest and resources.
+        unitTests.isIncludeAndroidResources = true
+    }
+
     packaging {
         // cloudflared ships as lib/<abi>/libcloudflared.so (see scripts/build-cloudflared.sh).
         // It must be extracted to nativeLibraryDir on install, because Android only lets apps
@@ -114,4 +119,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    // Runs the database migration test on the JVM, with a real SQLite.
+    testImplementation(libs.robolectric)
 }

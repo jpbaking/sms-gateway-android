@@ -87,7 +87,7 @@ internal fun StatusScreen(app: GatewayApp, padding: PaddingValues, openSettings:
 
         if (state is ServerState.Running) AddressesCard(app, state as ServerState.Running)
 
-        Attention(app, keys?.isEmpty() == true, refresh, openSettings)
+        Attention(app, keys?.isEmpty() == true, keys.orEmpty().count { it.needsReview }, refresh, openSettings)
 
         Section("SIM cards") {
             if (sims.isEmpty()) Text("No active SIMs found (or phone permission not granted).")
@@ -186,14 +186,27 @@ private fun AddressesCard(app: GatewayApp, s: ServerState.Running) {
 /** Things that stop the gateway from working well, each with a way to fix it. */
 @SuppressLint("BatteryLife")
 @Composable
-private fun Attention(app: GatewayApp, noKeys: Boolean, refresh: Int, openSettings: (SettingsPage) -> Unit) {
+private fun Attention(
+    app: GatewayApp,
+    noKeys: Boolean,
+    keysToReview: Int,
+    refresh: Int,
+    openSettings: (SettingsPage) -> Unit,
+) {
     val context = LocalContext.current
     val power = context.getSystemService(PowerManager::class.java)
     val batteryRestricted = remember(refresh) { !power.isIgnoringBatteryOptimizations(context.packageName) }
     val httpsWithoutCert = remember(refresh) { app.settings.httpsEnabled && app.settings.tlsMaterial() == null }
-    if (!noKeys && !batteryRestricted && !httpsWithoutCert) return
+    if (!noKeys && !batteryRestricted && !httpsWithoutCert && keysToReview == 0) return
 
     Section("Needs attention") {
+        if (keysToReview > 0) {
+            Warning(
+                (if (keysToReview == 1) "1 API key has" else "$keysToReview API keys have") +
+                    " every permission, from before permissions existed. Keep only what each one needs.",
+            )
+            TextButton(onClick = { openSettings(SettingsPage.API_KEYS) }) { Text("Review API keys") }
+        }
         if (noKeys) {
             Warning("No API keys yet, so the API refuses every request.")
             TextButton(onClick = { openSettings(SettingsPage.API_KEYS) }) { Text("Create an API key") }

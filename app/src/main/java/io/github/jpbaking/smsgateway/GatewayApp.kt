@@ -5,6 +5,7 @@ import io.github.jpbaking.smsgateway.data.ApiKeys
 import io.github.jpbaking.smsgateway.data.AppDatabase
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
+import io.github.jpbaking.smsgateway.service.Notifier
 import io.github.jpbaking.smsgateway.server.EventStream
 import io.github.jpbaking.smsgateway.sms.SimRepository
 import io.github.jpbaking.smsgateway.sms.SmsSender
@@ -41,20 +42,24 @@ class GatewayApp : Application() {
         private set
     lateinit var tunnel: CloudflaredTunnel
         private set
+    lateinit var notifier: Notifier
+        private set
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         db = AppDatabase.create(this)
         settings = Settings(this)
-        apiKeys = ApiKeys(db.apiKeys(), settings)
+        events = EventStream(db.events(), settings)
+        // A key that is disabled, revoked or regenerated loses its open event streams at once.
+        apiKeys = ApiKeys(db.apiKeys(), settings, db.webhooks(), onAccessReduced = events::closeStreamsOf)
         scope.launch { apiKeys.migrateLegacyKey() }
         CleanupWorker.schedule(this)
         sims = SimRepository(this)
-        events = EventStream(db.events(), settings)
-        webhooks = WebhookDispatcher(this, db.webhooks(), events)
+        webhooks = WebhookDispatcher(this, db.webhooks(), events, apiKeys)
         sender = SmsSender(this, db.messages(), webhooks)
         tunnel = CloudflaredTunnel(this, settings)
+        notifier = Notifier(this)
     }
 
     companion object {

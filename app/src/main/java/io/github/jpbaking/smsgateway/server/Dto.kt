@@ -95,6 +95,8 @@ data class WebhookDto(
     val headers: List<HeaderDto>,
     /** TLS certificate checks are skipped for this webhook. */
     val insecure: Boolean,
+    /** False while the webhook is switched off on the phone. Nothing is delivered to it then. */
+    val enabled: Boolean,
     val createdAt: Long,
 ) {
     companion object {
@@ -103,12 +105,13 @@ data class WebhookDto(
         fun from(w: WebhookEntity, revealSecret: Boolean = false) = WebhookDto(
             id = w.id,
             url = w.url,
-            events = w.events.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+            events = w.eventNames(),
             secret = if (revealSecret) SecretBox.decrypt(w.secret) else null,
             headers = w.storedHeaders().map {
                 HeaderDto(it.key, if (it.isSecret) MASK else it.value, it.isSecret)
             },
             insecure = w.insecure,
+            enabled = w.enabled,
             createdAt = w.createdAt,
         )
     }
@@ -119,6 +122,10 @@ data class WebhookPayload(val id: String, val event: String, val timestamp: Long
 
 @Serializable
 data class ErrorDto(val error: String)
+
+/** The body of a `403` for a key that lacks a scope. [scope] is the missing scope's name. */
+@Serializable
+data class ScopeErrorDto(val error: String, val scope: String)
 
 @Serializable
 data class HealthDto(val status: String, val version: String)

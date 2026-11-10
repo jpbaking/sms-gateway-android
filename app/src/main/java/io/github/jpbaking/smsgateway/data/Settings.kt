@@ -86,6 +86,11 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_HTTP_ON_LAN, false)
         set(value) = prefs.edit().putBoolean(KEY_HTTP_ON_LAN, value).apply()
 
+    /** When true, the API can't add or remove webhooks: that's done in the app only. */
+    var webhooksPhoneOnly: Boolean
+        get() = prefs.getBoolean(KEY_WEBHOOKS_PHONE_ONLY, false)
+        set(value) = prefs.edit().putBoolean(KEY_WEBHOOKS_PHONE_ONLY, value).apply()
+
     /** Where the HTTPS certificate came from, or null if none is set up. */
     val tlsSource: TlsSource?
         get() = TlsSource.entries.firstOrNull { it.name == prefs.getString(KEY_TLS_SOURCE, null) }
@@ -115,6 +120,7 @@ class Settings(context: Context) {
     companion object {
         const val DEFAULT_PORT = 8080
         const val DEFAULT_HTTPS_PORT = 8443
+        private const val KEY_WEBHOOKS_PHONE_ONLY = "webhooks_phone_only"
         private const val KEY_EVENT_STREAM = "event_stream_enabled"
         private const val KEY_HTTPS_ENABLED = "https_enabled"
         private const val KEY_HTTPS_PORT = "https_port"

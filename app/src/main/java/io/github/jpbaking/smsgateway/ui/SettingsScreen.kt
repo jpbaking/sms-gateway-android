@@ -1,7 +1,6 @@
 package io.github.jpbaking.smsgateway.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,7 +33,6 @@ import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.R
 import io.github.jpbaking.smsgateway.data.Settings
-import io.github.jpbaking.smsgateway.data.WebhookEntity
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
 import io.github.jpbaking.smsgateway.server.EventStream
 import io.github.jpbaking.smsgateway.service.GatewayService
@@ -47,10 +43,10 @@ import java.text.DateFormat
 import java.util.Date
 
 internal enum class SettingsPage(val title: String, val summary: String) {
-    SERVER("Server", "Ports, start on boot, HTTPS and its certificate"),
+    SERVER("Server", "Who can connect, ports, start on boot, HTTPS"),
     TUNNEL("Public access", "Cloudflare Tunnel"),
-    API_KEYS("API keys", "Who may use the API"),
-    WEBHOOKS("Webhooks", "Retries, registered webhooks"),
+    API_KEYS("API keys", "Who may use the API, and what each key may do"),
+    WEBHOOKS("Webhooks", "Where messages are forwarded, and retries"),
     EVENT_STREAM("Event stream", "Live events for client apps (SSE)"),
     STORAGE("Storage", "How long messages are kept"),
     ABOUT("About", "Version"),
@@ -90,8 +86,8 @@ internal fun SettingsPageContent(app: GatewayApp, page: SettingsPage, padding: P
             SettingsPage.TUNNEL -> TunnelSection(app, (state as? ServerState.Running)?.port ?: app.settings.port)
             SettingsPage.API_KEYS -> ApiKeysSection(app)
             SettingsPage.WEBHOOKS -> {
+                WebhooksSection(app)
                 WebhookRetrySettings(app)
-                RegisteredWebhooks(app)
             }
             SettingsPage.EVENT_STREAM -> EventStreamSettings(app)
             SettingsPage.STORAGE -> StorageSettings(app)
@@ -207,8 +203,8 @@ private fun EventStreamSettings(app: GatewayApp) {
             pending = if (on) {
                 PendingChange(
                     title = "Turn on the event stream?",
-                    text = "GET /api/v1/events starts answering. Any valid API key can then follow every " +
-                        "incoming SMS and status update live.\n\nFrom now on, events are also kept in the " +
+                    text = "GET /api/v1/events starts answering. Any API key with the \"follow the event " +
+                        "stream\" permission can then follow every incoming SMS and status update live.\n\nFrom now on, events are also kept in the " +
                         "database (as long as messages, at most ${EventStream.MAX_KEPT}) so clients can catch up " +
                         "after a dropped connection.",
                     confirmLabel = "Turn on",
@@ -231,7 +227,7 @@ private fun EventStreamSettings(app: GatewayApp) {
             Text(
                 "Server-Sent Events at GET /api/v1/events: the same events webhooks get, pushed live to " +
                     "apps that keep a connection open, such as a client app on another phone. " +
-                    "Needs an API key.",
+                    "Needs an API key with the \"follow the event stream\" permission.",
                 style = MaterialTheme.typography.bodySmall,
             )
             ValueRow("Serve the event stream", onOff(enabled))
@@ -248,39 +244,6 @@ private fun EventStreamSettings(app: GatewayApp) {
     )
 
     PendingChangeDialog(pending) { pending = null }
-}
-
-/** Read-only: webhooks are added and removed through the API. */
-@Composable
-private fun RegisteredWebhooks(app: GatewayApp) {
-    val hooks by produceState<List<WebhookEntity>?>(initialValue = null) {
-        value = app.db.webhooks().all()
-    }
-    Section("Registered webhooks") {
-        Text(
-            "Add or remove webhooks with POST and DELETE /webhooks.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        val list = hooks
-        when {
-            list == null -> Text("Loading…")
-            list.isEmpty() -> Text("None yet. Incoming SMS and delivery updates aren't sent anywhere.")
-            else -> list.forEachIndexed { i, hook ->
-                if (i > 0) HorizontalDivider()
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(hook.url, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
-                    Text(hook.events.replace(",", ", "), style = MaterialTheme.typography.bodySmall)
-                    val headers = hook.storedHeaders()
-                    Text(
-                        "Added ${formatDateTime(hook.createdAt)}" +
-                            (if (headers.isNotEmpty()) "  ·  headers: ${headers.joinToString(", ") { it.key }}" else "") +
-                            (if (hook.insecure) "  ·  certificate not checked" else ""),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable
