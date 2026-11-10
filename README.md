@@ -1,163 +1,96 @@
 # SMS Gateway for Android
 
-Turns an Android phone (Android 9 or newer) into an SMS gateway. Other systems send and read SMS through
-an HTTP API served by the phone itself, and get webhooks for incoming messages and delivery status.
-Dual-SIM and multi-SIM phones are supported: you can choose the SIM per message, and every message
-records which SIM it used.
+**Turn a spare Android phone into an SMS gateway.** Send and receive text messages from your own apps
+over a simple HTTP API, get webhooks for incoming SMS and delivery reports, and choose which SIM
+sends each message. Everything runs on the phone: no cloud service, no subscription.
 
-Built with Kotlin, Jetpack Compose, Ktor (CIO server), Room and WorkManager. Distributed as an APK
-through [GitHub Releases](../../releases), not the Play Store.
+[![CI](https://github.com/jpbaking/sms-gateway-android/actions/workflows/ci.yml/badge.svg)](https://github.com/jpbaking/sms-gateway-android/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/jpbaking/sms-gateway-android?include_prereleases)](https://github.com/jpbaking/sms-gateway-android/releases)
+![Android 9+](https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
 
-## Setup on the phone
+## Features
 
-1. Install the APK from Releases (allow installs from unknown sources).
-2. Open the app and tap **Grant permissions** (SMS, phone state, notifications).
-3. Tap **Allow running in background** so battery optimization doesn't pause the server.
-4. Tap **Start**. The app shows the URL to use, e.g. `http://192.168.1.50:8080`.
-5. Under **API keys**, tap **New key** and give it a name (e.g. `billing-app`). Copy the key: it's
-   shown only once.
-6. Optional: turn on **Start on boot**.
+- 📤 **Send SMS** with one HTTP call. Long messages are split and joined automatically
+- 📥 **Receive SMS** as webhooks, signed with HMAC-SHA256 and retried until your server is back
+- 📶 **Dual-SIM and multi-SIM**: pick the SIM per message, and see which SIM received each one
+- ✅ **Delivery tracking**: `queued` → `sent` → `delivered` (or `failed`, with the reason)
+- 🔑 **Named API keys**: one per app, shown once, stored hashed, revocable, and recorded on every message
+- 🔒 **Secrets encrypted** with the Android Keystore. Extra webhook headers (e.g. `Authorization`) are supported
+- 💾 **Local database** with a retention policy and automatic compaction
+- 🔋 Runs as a foreground service, survives reboots, works on **Android 9 and newer**
 
-The phone and the system calling it need to be on the same network (or reach the phone through a VPN
-such as Tailscale). Cloud relay mode is planned for later.
+## How it works
 
-## API
+```mermaid
+flowchart LR
+    app[Your app] -- "POST /api/v1/messages" --> phone
+    subgraph phone[Android phone running SMS Gateway]
+        api[HTTP API] --> db[(Local DB)]
+        api --> sim1[SIM 1]
+        api --> sim2[SIM 2]
+    end
+    sim1 & sim2 <--> net((Mobile<br/>network))
+    phone -- "webhook: sms:received,<br/>sms:sent, sms:delivered" --> hook[Your server]
+```
 
-Every `/api/v1` call needs an API key, as `X-API-Key: <key>` or `Authorization: Bearer <key>`.
+```mermaid
+sequenceDiagram
+    participant A as Your app
+    participant G as SMS Gateway
+    participant R as Recipient
+    A->>G: POST /api/v1/messages {to, body, simSlot}
+    G-->>A: 202 Accepted {id, status: queued}
+    G->>R: SMS via chosen SIM
+    G-->>A: webhook sms:sent
+    R-->>G: delivery report
+    G-->>A: webhook sms:delivered
+```
 
-Create one named key per app or user in the app's **API keys** card. The phone keeps only a hash of
-each key, so the key is shown once when it's created or regenerated. After that the list shows its
-name, its first characters (`sgw_1a2b3c4d…`) and when it was last used. **Regenerate** replaces
-a key's value under the same name. **Revoke** deletes it. Both take effect immediately.
+## Quick start
 
-Every outgoing message records the key that sent it, as `apiKeyId` and `apiKeyName` in the API
-and in webhook payloads. A webhook receiver can use that to recognise status events for its own
-sends. Incoming SMS go to every webhook.
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `GET` | `/health` | Liveness check, no key needed |
-| `GET` | `/api/v1/sims` | Active SIMs with `slot`, `subscriptionId`, carrier, default flag |
-| `POST` | `/api/v1/messages` | Send an SMS |
-| `GET` | `/api/v1/messages?direction=in\|out&limit=50&offset=0` | List messages, newest first |
-| `GET` | `/api/v1/messages/{id}` | One message and its status |
-| `GET` | `/api/v1/webhooks` | List webhooks |
-| `POST` | `/api/v1/webhooks` | Add a webhook |
-| `DELETE` | `/api/v1/webhooks/{id}` | Remove a webhook |
-
-### Send
+1. Download the APK from [Releases](https://github.com/jpbaking/sms-gateway-android/releases) and
+   install it. If Play Protect complains, see [Troubleshooting](docs/troubleshooting.md#the-install-is-blocked).
+2. Open the app, **Grant permissions**, tap **Allow running in background**, then **Start**.
+3. Under **API keys**, tap **New key** and copy the key.
+4. Send a message:
 
 ```sh
-curl -X POST http://PHONE:8080/api/v1/messages \
-  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{"to": "+15551234567", "body": "Hello", "simSlot": 1}'
+curl -X POST http://PHONE_IP:8080/api/v1/messages \
+  -H "X-API-Key: sgw_your_key" -H "Content-Type: application/json" \
+  -d '{"to": "+15551234567", "body": "Hello!", "simSlot": 0}'
 ```
 
-`simSlot` is zero-based (`0` = SIM 1, `1` = SIM 2). You can pass `subscriptionId` from `/sims`
-instead. With neither, the phone's default SMS SIM is used. Long messages are split automatically.
+Full walkthrough: **[Getting started](docs/getting-started.md)**.
 
-The response is `202 Accepted` with the message. Its `status` then moves through
-`queued` → `sending` → `sent` → `delivered`, or ends at `failed` with an `error`.
-(`delivered` needs the carrier to send delivery reports, which not all do.)
+## Documentation
 
-### Webhooks
+- [Getting started](docs/getting-started.md)
+- [API reference](docs/api.md)
+- [Webhooks](docs/webhooks.md): events, payloads, signature verification, retries
+- [Dual-SIM and multi-SIM](docs/multi-sim.md)
+- [Security](docs/security.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
-```sh
-curl -X POST http://PHONE:8080/api/v1/webhooks \
-  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://example.com/sms",
-    "events": ["sms:received", "sms:delivered"],
-    "headers": [
-      {"key": "Authorization", "value": "Bearer XXXXX", "isSecret": true},
-      {"key": "X-Tenant", "value": "acme"}
-    ]
-  }'
-```
+## Good to know
 
-`headers` is optional. Each header is sent with every delivery. `isSecret` defaults to `false`.
-Secret header values are stored encrypted and shown as `********` when you list webhooks.
-`Content-Type`, `Content-Length`, `Host`, `Connection`, `Transfer-Encoding` and `X-Gateway-*`
-are set by the gateway and can't be overridden. You can override `User-Agent`.
+- **Distributed as an APK**, not on the Play Store. Google limits SMS permissions on Play to default
+  SMS apps.
+- **The phone must be reachable** from your systems: the same network, or a VPN such as Tailscale.
+  A cloud relay mode for phones behind NAT is on the roadmap.
+- The API is plain HTTP on your network. Read [Security](docs/security.md) before exposing it.
+- SMS costs whatever your carrier charges. Check your plan before sending in bulk.
 
-Events: `sms:received`, `sms:sent`, `sms:delivered`, `sms:failed` (default: all). The create
-response includes the signing `secret` (generated unless you pass one). Save it: later calls to
-`GET /api/v1/webhooks` don't return it. Each delivery is a `POST` with this body:
+## Roadmap
 
-```json
-{
-  "id": "event uuid",
-  "event": "sms:received",
-  "timestamp": 1762726800000,
-  "message": { "id": "...", "direction": "in", "phoneNumber": "+15551234567", "body": "Hi",
-               "simSlot": 0, "subscriptionId": 1, "status": "received", "...": "..." }
-}
-```
+- Cloud relay: the phone connects out to a server over WebSocket/SSE, so it doesn't need to be
+  reachable directly
 
-Headers: `X-Gateway-Event`, `X-Gateway-Timestamp` (Unix seconds) and
-`X-Gateway-Signature: sha256=<hex>`, the HMAC-SHA256 of `"<timestamp>.<raw body>"` keyed with the
-webhook's secret.
+## Contributing
 
-**Retries:** if your server is down (network error, timeout, 5xx, 408 or 429), the phone retries
-after 10s, 20s, 40s, ... and then every 5 minutes, forever by default. So delivery resumes within
-about 5 minutes of your server coming back. Both the interval and an optional time limit are set
-on the app's **Webhook retries** card. While the phone itself is offline, retries wait for the
-connection without counting. Other 4xx responses are not retried, and deleting a webhook stops its
-pending retries. Every message is also stored on the phone, so `GET /api/v1/messages` can catch up
-on anything a webhook missed.
+Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, code layout and
+release process.
 
-### Storage and retention
+## License
 
-Messages are kept for 30 days by default. Change this on the app's **Storage** card, where `0`
-keeps them forever. Once a day, a background job deletes older messages, but never ones still
-queued or sending. If at least a quarter of the file is then free space, it also compacts the
-database (`VACUUM`), so the file actually shrinks. **Clean up now** runs the job immediately.
-WorkManager prunes its own finished webhook jobs automatically.
-
-### How secrets are stored
-
-API keys are stored only as SHA-256 hashes. Webhook signing secrets and secret header values are
-encrypted with an AES-256-GCM key held in the Android Keystore. The key can't be exported from the phone, so a copy of the app's data
-files doesn't reveal them. App backups are turned off as well.
-
-## Releases
-
-Pushing a tag builds a signed APK and publishes it on the Releases page:
-
-- `v0.1.0-dev.1`, `v0.1.0-alpha.1`, `v0.1.0-beta.1`, ... are published as **pre-releases**
-- `v1.0.0` (no suffix) is published as a full release
-
-```sh
-git tag v0.1.0-dev.1 && git push origin v0.1.0-dev.1
-```
-
-### One-time signing setup
-
-Android only installs an update over an existing install when both are signed with the same key,
-so every release must use the same keystore. Create it once and keep a backup somewhere safe:
-
-```sh
-keytool -genkeypair -v -keystore release.jks -alias smsgateway \
-  -keyalg RSA -keysize 4096 -validity 10000
-```
-
-Then add these repository secrets (Settings → Secrets and variables → Actions), or use `gh`:
-
-```sh
-base64 -w0 release.jks | gh secret set SIGNING_KEYSTORE_BASE64   # macOS: base64 -i release.jks
-gh secret set SIGNING_KEYSTORE_PASSWORD
-gh secret set SIGNING_KEY_ALIAS      # smsgateway
-gh secret set SIGNING_KEY_PASSWORD   # same as the keystore password unless you chose another
-```
-
-## Building locally
-
-Needs JDK 17 and the Android SDK.
-
-```sh
-./gradlew assembleDebug        # app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest
-```
-
-Debug builds install as a separate app (`io.github.jpbaking.smsgateway.debug`), so they can sit
-next to a release build.
+[BSD 3-Clause](LICENSE) © Joseph Baking
