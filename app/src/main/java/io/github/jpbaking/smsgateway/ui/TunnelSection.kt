@@ -1,28 +1,20 @@
 package io.github.jpbaking.smsgateway.ui
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.TunnelMode
@@ -32,115 +24,188 @@ import io.github.jpbaking.smsgateway.tunnel.TunnelState
 @Composable
 fun TunnelSection(app: GatewayApp, port: Int) {
     val tunnel = app.tunnel
-    val settings = app.settings
-    val state by tunnel.state.collectAsStateWithLifecycle()
-    val quickUrl by tunnel.quickUrl.collectAsStateWithLifecycle()
-    val log by tunnel.log.collectAsStateWithLifecycle()
-
-    var enabled by remember { mutableStateOf(settings.tunnelEnabled) }
-    var mode by remember { mutableStateOf(settings.tunnelMode) }
-    var hasToken by remember { mutableStateOf(!settings.tunnelToken.isNullOrBlank()) }
-    var tokenText by remember { mutableStateOf("") }
-    var hostname by remember { mutableStateOf(settings.tunnelHostname) }
-    var showLog by remember { mutableStateOf(false) }
-
-    Section("Public access (Cloudflare Tunnel)") {
-        if (!tunnel.isBundled) {
+    if (!tunnel.isBundled) {
+        Section("Cloudflare Tunnel") {
             Text(
                 "This build doesn't include cloudflared for this phone's processor, so the tunnel isn't available.",
                 color = MaterialTheme.colorScheme.error,
             )
-            return@Section
         }
-        Text(
-            "Makes the API reachable from the internet without opening ports. Anyone with the URL " +
-                "can reach the API, so keep your API keys secret.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Enable tunnel")
-            Spacer(Modifier.width(8.dp))
-            Switch(checked = enabled, onCheckedChange = {
-                enabled = it
-                settings.tunnelEnabled = it
-                tunnel.reload()
-            })
-        }
+        return
+    }
+    TunnelSettings(app, port)
+    TunnelLogCard(app)
+}
 
-        Column {
-            ModeOption(
-                selected = mode == TunnelMode.TOKEN,
-                title = "My Cloudflare tunnel",
-                detail = "Uses a tunnel token from the Cloudflare dashboard. Your own hostname, which never changes.",
-            ) {
-                mode = TunnelMode.TOKEN
-                settings.tunnelMode = mode
-                tunnel.reload()
-            }
-            ModeOption(
-                selected = mode == TunnelMode.QUICK,
-                title = "Quick tunnel (for testing)",
-                detail = "No account needed. Gets a random trycloudflare.com URL that changes every time it starts.",
-            ) {
-                mode = TunnelMode.QUICK
-                settings.tunnelMode = mode
-                tunnel.reload()
-            }
-        }
+@Composable
+private fun TunnelSettings(app: GatewayApp, port: Int) {
+    val tunnel = app.tunnel
+    val settings = app.settings
+    val state by tunnel.state.collectAsStateWithLifecycle()
+    val quickUrl by tunnel.quickUrl.collectAsStateWithLifecycle()
 
-        if (mode == TunnelMode.TOKEN) {
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var enabled by rememberSaveable { mutableStateOf(settings.tunnelEnabled) }
+    var mode by rememberSaveable { mutableStateOf(settings.tunnelMode) }
+    var tokenText by remember { mutableStateOf("") }
+    var hostname by rememberSaveable { mutableStateOf(settings.tunnelHostname) }
+    // Bumped when the saved token changes, to re-read it.
+    var tokenVersion by remember { mutableIntStateOf(0) }
+    val hasToken = remember(tokenVersion) { !settings.tunnelToken.isNullOrBlank() }
+    var pending by remember { mutableStateOf<PendingChange?>(null) }
+    var confirmRemoveToken by remember { mutableStateOf(false) }
+
+    fun reset() {
+        enabled = settings.tunnelEnabled
+        mode = settings.tunnelMode
+        tokenText = ""
+        hostname = settings.tunnelHostname
+    }
+
+    EditableSection(
+        title = "Cloudflare Tunnel",
+        editing = editing,
+        onEditingChange = { editing = it },
+        dirty = enabled != settings.tunnelEnabled ||
+            mode != settings.tunnelMode ||
+            tokenText.isNotBlank() ||
+            hostname != settings.tunnelHostname,
+        onDiscard = ::reset,
+        onSave = save@{
+            if (enabled && mode == TunnelMode.TOKEN && !hasToken && tokenText.isBlank()) {
+                return@save "Paste the tunnel token from the Cloudflare dashboard."
+            }
+            val commit = {
+                if (tokenText.isNotBlank()) {
+                    settings.tunnelToken = tokenText
+                    tokenVersion++
+                }
+                settings.tunnelHostname = hostname
+                settings.tunnelMode = mode
+                settings.tunnelEnabled = enabled
+                tunnel.reload()
+                editing = false
+                reset()
+            }
+            if (enabled && !settings.tunnelEnabled) {
+                pending = PendingChange(
+                    title = "Make the API public?",
+                    text = "Anyone on the internet who has the tunnel's URL can reach the API. Requests still " +
+                        "need an API key, so keep your keys secret.",
+                    confirmLabel = "Turn on",
+                    commit = commit,
+                )
+            } else {
+                commit()
+            }
+            null
+        },
+        view = {
             Text(
-                "In Cloudflare Zero Trust, go to Networks > Tunnels, create a tunnel, and copy its token. " +
-                    "Add a public hostname with the service set to http://localhost:$port.",
+                "Makes the API reachable from the internet without opening ports.",
                 style = MaterialTheme.typography.bodySmall,
             )
-            OutlinedTextField(
-                value = tokenText,
-                onValueChange = { tokenText = it.trim() },
-                label = { Text(if (hasToken) "Tunnel token (saved, paste to replace)" else "Tunnel token") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+            ValueRow("Tunnel", onOff(settings.tunnelEnabled))
+            ValueRow(
+                "Kind",
+                when (settings.tunnelMode) {
+                    TunnelMode.TOKEN -> "My Cloudflare tunnel"
+                    TunnelMode.QUICK -> "Quick tunnel"
+                },
             )
-            OutlinedTextField(
-                value = hostname,
-                onValueChange = { hostname = it.trim() },
-                label = { Text("Public hostname (optional, for display)") },
-                placeholder = { Text("sms.example.com") },
-                singleLine = true,
-            )
-            Row {
-                Button(onClick = {
-                    if (tokenText.isNotBlank()) {
-                        settings.tunnelToken = tokenText
-                        hasToken = true
-                        tokenText = ""
-                    }
-                    settings.tunnelHostname = hostname
-                    tunnel.reload()
-                }) { Text("Save") }
-                if (hasToken) {
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        settings.tunnelToken = null
-                        hasToken = false
-                        tunnel.reload()
-                    }) { Text("Remove token", color = MaterialTheme.colorScheme.error) }
+            if (settings.tunnelMode == TunnelMode.TOKEN) {
+                ValueRow("Token", if (hasToken) "Saved" else "Not set")
+                ValueRow("Public hostname", settings.tunnelHostname.ifBlank { "Not set" })
+            }
+            if (settings.tunnelEnabled) {
+                Text(tunnelStatusText(state), style = MaterialTheme.typography.bodyLarge)
+                val url = when (settings.tunnelMode) {
+                    TunnelMode.QUICK -> quickUrl
+                    TunnelMode.TOKEN -> settings.tunnelHostname.takeIf { it.isNotBlank() }
+                        ?.let { "https://${it.removePrefix("https://")}" }
+                }
+                if (url != null && state is TunnelState.Connected) {
+                    SelectionContainer { Text(url, fontFamily = FontFamily.Monospace) }
                 }
             }
-        }
-
-        if (enabled) {
-            Text(statusText(state), style = MaterialTheme.typography.bodyLarge)
-            val url = when (mode) {
-                TunnelMode.QUICK -> quickUrl
-                TunnelMode.TOKEN -> hostname.takeIf { it.isNotBlank() }?.let { "https://${it.removePrefix("https://")}" }
+            if (settings.tunnelMode == TunnelMode.TOKEN && hasToken) {
+                TextButton(onClick = { confirmRemoveToken = true }) {
+                    Text("Remove token", color = MaterialTheme.colorScheme.error)
+                }
             }
-            if (url != null && state is TunnelState.Connected) {
-                SelectionContainer { Text(url, fontFamily = FontFamily.Monospace) }
+        },
+        edit = {
+            SwitchRow(
+                "Enable tunnel",
+                enabled,
+                { enabled = it },
+                detail = "Runs while the server is running.",
+            )
+            Column {
+                RadioOption(
+                    selected = mode == TunnelMode.TOKEN,
+                    title = "My Cloudflare tunnel",
+                    detail = "Uses a tunnel token from the Cloudflare dashboard. Your own hostname, which never changes.",
+                ) { mode = TunnelMode.TOKEN }
+                RadioOption(
+                    selected = mode == TunnelMode.QUICK,
+                    title = "Quick tunnel (for testing)",
+                    detail = "No account needed. Gets a random trycloudflare.com URL that changes every time it starts.",
+                ) { mode = TunnelMode.QUICK }
             }
-        }
+            if (mode == TunnelMode.TOKEN) {
+                Text(
+                    "In Cloudflare Zero Trust, go to Networks > Tunnels, create a tunnel, and copy its token. " +
+                        "Add a public hostname with the service set to http://localhost:$port.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = tokenText,
+                    onValueChange = { tokenText = it.trim() },
+                    label = { Text(if (hasToken) "Tunnel token (saved, paste to replace)" else "Tunnel token") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                OutlinedTextField(
+                    value = hostname,
+                    onValueChange = { hostname = it.trim() },
+                    label = { Text("Public hostname (optional, for display)") },
+                    placeholder = { Text("sms.example.com") },
+                    singleLine = true,
+                )
+            }
+        },
+    )
 
-        TextButton(onClick = { showLog = !showLog }) { Text(if (showLog) "Hide log" else "Show log") }
+    PendingChangeDialog(pending) { pending = null }
+    if (confirmRemoveToken) {
+        ConfirmDialog(
+            title = "Remove the tunnel token?",
+            text = if (settings.tunnelEnabled) {
+                "The tunnel disconnects and the API is no longer reachable from the internet until you paste a token again."
+            } else {
+                "You'll need to paste the token again to use your Cloudflare tunnel."
+            },
+            confirmLabel = "Remove",
+            onDismiss = { confirmRemoveToken = false },
+            onConfirm = {
+                confirmRemoveToken = false
+                settings.tunnelToken = null
+                tokenVersion++
+                tunnel.reload()
+            },
+        )
+    }
+}
+
+@Composable
+private fun TunnelLogCard(app: GatewayApp) {
+    val log by app.tunnel.log.collectAsStateWithLifecycle()
+    var showLog by rememberSaveable { mutableStateOf(false) }
+    Section(
+        title = "Log",
+        action = { TextButton(onClick = { showLog = !showLog }) { Text(if (showLog) "Hide" else "Show") } },
+    ) {
         if (showLog) {
             SelectionContainer {
                 Text(
@@ -153,21 +218,7 @@ fun TunnelSection(app: GatewayApp, port: Int) {
     }
 }
 
-@Composable
-private fun ModeOption(selected: Boolean, title: String, detail: String, onSelect: () -> Unit) {
-    Row(
-        Modifier.selectable(selected = selected, onClick = onSelect),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = onSelect)
-        Column {
-            Text(title)
-            Text(detail, style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-private fun statusText(state: TunnelState): String = when (state) {
+internal fun tunnelStatusText(state: TunnelState): String = when (state) {
     TunnelState.Off -> "Starts when the server is running."
     TunnelState.NotBundled -> "cloudflared isn't included in this build."
     TunnelState.MissingToken -> "Paste a tunnel token to connect."

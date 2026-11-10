@@ -1,8 +1,9 @@
 # HTTPS
 
 The gateway can serve its API over HTTPS, so API keys and message text are encrypted on the network.
-Turn it on in the app under **HTTPS**, pick a port (default `8443`), and set up a certificate in one
-of three ways:
+In the app, open **Settings → HTTPS**. Under **Certificate**, tap **Set up** and pick one of three ways
+to get a certificate. Then tap **Edit** on the **HTTPS** card, turn on **Serve HTTPS**, pick a port
+(default `8443`), and tap **Save**:
 
 | Option | Use it when |
 | --- | --- |
@@ -10,7 +11,8 @@ of three ways:
 | **Paste certificate and key** | You have PEM files, for example from Let's Encrypt or your own CA. |
 | **PKCS#12 file** | You have a `.p12` / `.pfx` bundle and its password. |
 
-Change HTTPS settings while the server is stopped; they apply the next time it starts.
+If the server is running when you save a change (or replace the certificate), the app asks before it
+restarts the server to apply it.
 
 ## Plain HTTP when HTTPS is on
 

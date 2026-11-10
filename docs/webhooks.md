@@ -113,7 +113,7 @@ the bytes and breaks the signature.
 | No answer, timeout, `5xx`, `408`, `429` | Retries: 10s, 20s, 40s, 80s, 160s, then every **retry interval** |
 | Any other `4xx` (e.g. `404`, `401`) | Gives up immediately, since retrying won't help |
 
-On the app's **Webhook retries** card:
+In the app, under **Settings → Webhooks**, tap **Edit** on the **Webhook retries** card:
 
 - **Retry interval**: the longest wait between attempts. Default 300 seconds (5 minutes).
 - **Give up after**: hours from the first attempt. Default `0`, which retries forever.

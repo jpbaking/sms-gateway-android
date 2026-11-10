@@ -35,8 +35,6 @@ import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.ApiKeyEntity
 import io.github.jpbaking.smsgateway.data.ApiKeys
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 
 /** Lists named API keys by name only. A key's value is shown once, right after it's issued. */
 @Composable
@@ -169,25 +167,6 @@ private fun ShowKeyOnceDialog(issued: ApiKeys.Issued, onDone: () -> Unit) {
     )
 }
 
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    text: String,
-    confirmLabel: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text(confirmLabel, color = MaterialTheme.colorScheme.error) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
 /** Copies text and, on Android 13+, marks it sensitive so the clipboard preview hides it. */
 private fun copySensitive(context: Context, text: String) {
     val clip = ClipData.newPlainText("API key", text)
@@ -203,5 +182,4 @@ private fun copySensitive(context: Context, text: String) {
     }
 }
 
-private fun formatTime(millis: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(millis))
+private fun formatTime(millis: Long): String = formatDateTime(millis)

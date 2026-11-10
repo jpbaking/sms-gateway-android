@@ -59,6 +59,14 @@ class GatewayService : Service() {
             return START_NOT_STICKY
         }
         val app = application as GatewayApp
+        if (intent?.action == ACTION_RESTART && server.isRunning) {
+            // Settings changed: shut the listeners down and bring them back up below with the new values.
+            app.tunnel.setServerRunning(false)
+            tls?.stop()
+            tls = null
+            server.stop()
+            releaseLocks()
+        }
         val settings = app.settings
         val port = settings.port
         val httpsPort = settings.httpsPort.takeIf { settings.httpsEnabled }
@@ -179,12 +187,21 @@ class GatewayService : Service() {
         private const val CHANNEL_ID = "gateway"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_STOP = "io.github.jpbaking.smsgateway.STOP"
+        private const val ACTION_RESTART = "io.github.jpbaking.smsgateway.RESTART"
 
         private val _state = MutableStateFlow<ServerState>(ServerState.Stopped)
         val state: StateFlow<ServerState> = _state.asStateFlow()
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, GatewayService::class.java))
+        }
+
+        /** Restarts the server so it picks up changed ports or HTTPS settings. Starts it if it's stopped. */
+        fun restart(context: Context) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, GatewayService::class.java).setAction(ACTION_RESTART),
+            )
         }
 
         fun stop(context: Context) {

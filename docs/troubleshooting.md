@@ -14,7 +14,7 @@ Android and Google Play Protect are cautious about sideloaded apps that use SMS.
 
 ## I can't reach the server
 
-1. Is the notification "SMS gateway running" showing? If not, open the app and tap **Start**.
+1. Is the notification "SMS gateway running" showing? If not, open the app and tap **Start server**.
 2. Use the exact address shown in the app. The phone's IP changes when it joins another network.
 3. Are both devices on the same network? Guest Wi-Fi and "AP isolation" often block devices from
    reaching each other.
@@ -33,7 +33,7 @@ in the app), or generate a new self-signed certificate after the phone's IP chan
 
 ## It stops working when the screen is off
 
-- Tap **Allow running in background** in the app.
+- Tap **Allow running in background** on the app's **Status** tab.
 - On Xiaomi, Huawei, Oppo, Vivo and Samsung, also look in the battery settings for SMS Gateway and
   set it to **Unrestricted**, or turn on **Autostart**.
 - Don't use **Force stop** on the app (App info → Force stop). Android won't run its background work until you open it
@@ -68,4 +68,4 @@ accepted the message.
 
 ## The database is getting big
 
-Lower **Keep messages for** on the **Storage** card and tap **Clean up now**. The default is 30 days.
+In **Settings → Storage**, tap **Edit**, lower **Keep messages for**, tap **Save**, then tap **Clean up now**. The default is 30 days.

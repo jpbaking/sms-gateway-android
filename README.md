@@ -55,8 +55,8 @@ sequenceDiagram
 
 1. Download the APK from [Releases](https://github.com/jpbaking/sms-gateway-android/releases) and
    install it. If Play Protect complains, see [Troubleshooting](docs/troubleshooting.md#the-install-is-blocked).
-2. Open the app, **Grant permissions**, tap **Allow running in background**, then **Start**.
-3. Under **API keys**, tap **New key** and copy the key.
+2. Open the app, **Grant permissions**, tap **Allow running in background**, then **Start server**.
+3. In **Settings → API keys**, tap **New key** and copy the key.
 4. Send a message:
 
 ```sh

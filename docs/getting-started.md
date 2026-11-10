@@ -43,9 +43,9 @@ settings too. Look for "autostart" or "unrestricted battery" for SMS Gateway.
 
 ## 4. Start the server
 
-Tap **Start**. A notification appears and the app shows the address to use, for example
-`http://192.168.1.50:8080`. Turn on **Start on boot** if the phone should come back up by itself after
-a restart.
+On the **Status** tab, tap **Start server**. A notification appears and the app shows the address to
+use, for example `http://192.168.1.50:8080`. If the phone should come back up by itself after a
+restart, open **Settings → Server**, tap **Edit**, turn on **Start on boot**, and tap **Save**.
 
 Check it from your computer:
 
@@ -56,7 +56,7 @@ curl http://192.168.1.50:8080/health
 
 ## 5. Create an API key
 
-Under **API keys**, tap **New key** and give it a name that says who will use it, such as
+In **Settings → API keys**, tap **New key** and give it a name that says who will use it, such as
 `billing-app`. Copy the key right away: **it's shown only once**. If you lose it, tap
 **Regenerate** to get a new one.
 
