@@ -73,6 +73,7 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
 - [API reference](docs/api.md)
 - [Webhooks](docs/webhooks.md): events, payloads, signature verification, retries
 - [Dual-SIM and multi-SIM](docs/multi-sim.md)
+- [Public access (Cloudflare Tunnel)](docs/tunnel.md)
 - [Security](docs/security.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
@@ -80,8 +81,8 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
 
 - **Distributed as an APK**, not on the Play Store. Google limits SMS permissions on Play to default
   SMS apps.
-- **The phone must be reachable** from your systems: the same network, or a VPN such as Tailscale.
-  A cloud relay mode for phones behind NAT is on the roadmap.
+- **The phone must be reachable** from your systems: the same network, a VPN such as Tailscale, or
+  the built-in [Cloudflare Tunnel](docs/tunnel.md) for a public HTTPS URL.
 - The API is plain HTTP on your network. Read [Security](docs/security.md) before exposing it.
 - SMS costs whatever your carrier charges. Check your plan before sending in bulk.
 

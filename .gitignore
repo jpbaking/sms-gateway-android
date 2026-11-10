@@ -10,3 +10,6 @@ build/
 *.jks
 *.keystore
 !debug.keystore
+
+# Built by scripts/build-cloudflared.sh
+/app/src/main/jniLibs/

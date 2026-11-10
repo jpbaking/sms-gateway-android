@@ -19,6 +19,16 @@ cd sms-gateway-android
 ./gradlew testDebugUnitTest    # unit tests
 ```
 
+The APK bundles cloudflared for the [Cloudflare Tunnel](docs/tunnel.md) feature. CI builds it from
+source; locally it's optional. Without it the app still builds and runs, and the tunnel section says
+it isn't available. To include it, install **Go** and the **Android NDK**, then:
+
+```sh
+ANDROID_NDK_HOME=/path/to/ndk scripts/build-cloudflared.sh   # writes app/src/main/jniLibs/
+```
+
+The cloudflared version is pinned in `scripts/cloudflared-version.txt`.
+
 Debug builds install as a separate app (`io.github.jpbaking.smsgateway.debug`), so they can sit next
 to a release build on the same phone. SMS needs a real phone with a SIM. The emulator can fake
 incoming SMS, but it can't send real ones.
@@ -31,6 +41,7 @@ app/src/main/java/io/github/jpbaking/smsgateway/
 ├── data/                Room database, DAOs, settings, API keys, SecretBox (Keystore encryption)
 ├── server/              Ktor HTTP API (GatewayServer) and its JSON types (Dto)
 ├── service/             foreground service that keeps the server alive, boot receiver
+├── tunnel/              runs the bundled cloudflared, restarts it on network changes and crashes
 ├── sms/                 sending per SIM, receiving, sent/delivered callbacks, SIM listing
 ├── webhook/             webhook dispatch, signing, and the retrying WorkManager worker
 ├── maintenance/         daily retention purge and database compaction

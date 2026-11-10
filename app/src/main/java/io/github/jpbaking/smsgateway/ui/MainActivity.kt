@@ -189,6 +189,8 @@ private fun GatewayScreen(app: GatewayApp) {
 
             item { ApiKeysSection(app) }
 
+            item { TunnelSection(app, (state as? ServerState.Running)?.port ?: app.settings.port) }
+
             item { WebhookRetrySection(app) }
 
             item { StorageSection(app) }
