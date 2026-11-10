@@ -61,6 +61,7 @@ class GatewayService : Service() {
                 acquireLocks()
                 _state.value = ServerState.Running(port)
                 resendQueued(app)
+                app.tunnel.setServerRunning(true, port)
             } catch (e: Exception) {
                 Log.e(TAG, "Could not start server on port $port", e)
                 _state.value = ServerState.Error("Could not start on port $port: ${e.message}")
@@ -72,6 +73,7 @@ class GatewayService : Service() {
     }
 
     override fun onDestroy() {
+        (application as GatewayApp).tunnel.setServerRunning(false)
         server.stop()
         releaseLocks()
         if (_state.value is ServerState.Running) _state.value = ServerState.Stopped

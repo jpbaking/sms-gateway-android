@@ -20,6 +20,19 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Cache cloudflared build
+        id: cloudflared-cache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/jniLibs
+          key: cloudflared-${{ hashFiles('scripts/cloudflared-version.txt', 'scripts/build-cloudflared.sh') }}
+      - name: Build cloudflared for Android
+        if: steps.cloudflared-cache.outputs.cache-hit != 'true'
+        run: scripts/build-cloudflared.sh
 
       - name: Check signing secrets
         env:

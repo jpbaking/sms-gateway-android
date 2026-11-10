@@ -36,8 +36,39 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS)
         set(value) = prefs.edit().putInt(KEY_RETENTION_DAYS, value).apply()
 
+    /** Whether the Cloudflare Tunnel runs alongside the server. */
+    var tunnelEnabled: Boolean
+        get() = prefs.getBoolean(KEY_TUNNEL_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_TUNNEL_ENABLED, value).apply()
+
+    var tunnelMode: TunnelMode
+        get() = TunnelMode.entries.firstOrNull { it.name == prefs.getString(KEY_TUNNEL_MODE, null) } ?: TunnelMode.TOKEN
+        set(value) = prefs.edit().putString(KEY_TUNNEL_MODE, value.name).apply()
+
+    /** Token of a tunnel created in the Cloudflare dashboard. Stored encrypted. */
+    var tunnelToken: String?
+        get() = prefs.getString(KEY_TUNNEL_TOKEN, null)?.let { SecretBox.decrypt(it) }
+        set(value) {
+            val editor = prefs.edit()
+            if (value.isNullOrBlank()) {
+                editor.remove(KEY_TUNNEL_TOKEN)
+            } else {
+                editor.putString(KEY_TUNNEL_TOKEN, SecretBox.encrypt(value.trim()))
+            }
+            editor.apply()
+        }
+
+    /** The public hostname set up for the tunnel in the dashboard. Only used for display. */
+    var tunnelHostname: String
+        get() = prefs.getString(KEY_TUNNEL_HOSTNAME, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_TUNNEL_HOSTNAME, value.trim()).apply()
+
     companion object {
         const val DEFAULT_PORT = 8080
+        private const val KEY_TUNNEL_ENABLED = "tunnel_enabled"
+        private const val KEY_TUNNEL_MODE = "tunnel_mode"
+        private const val KEY_TUNNEL_TOKEN = "tunnel_token"
+        private const val KEY_TUNNEL_HOSTNAME = "tunnel_hostname"
         private const val KEY_PORT = "port"
         private const val KEY_API_KEY = "api_key"
         const val DEFAULT_RETRY_INTERVAL_SECONDS = 300
@@ -53,4 +84,12 @@ class Settings(context: Context) {
             return buf.joinToString("") { "%02x".format(it) }
         }
     }
+}
+
+enum class TunnelMode {
+    /** A named tunnel from the user's Cloudflare account, run with its token. Stable hostname. */
+    TOKEN,
+
+    /** A throwaway trycloudflare.com tunnel. No account needed; the URL changes on every start. */
+    QUICK,
 }

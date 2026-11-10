@@ -60,6 +60,12 @@ android {
     }
 
     packaging {
+        // cloudflared ships as lib/<abi>/libcloudflared.so (see scripts/build-cloudflared.sh).
+        // It must be extracted to nativeLibraryDir on install, because Android only lets apps
+        // execute files from there, not from their own writable storage.
+        jniLibs {
+            useLegacyPackaging = true
+        }
         resources {
             excludes += setOf(
                 "/META-INF/{AL2.0,LGPL2.1}",

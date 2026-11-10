@@ -7,6 +7,7 @@ import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
 import io.github.jpbaking.smsgateway.sms.SimRepository
 import io.github.jpbaking.smsgateway.sms.SmsSender
+import io.github.jpbaking.smsgateway.tunnel.CloudflaredTunnel
 import io.github.jpbaking.smsgateway.webhook.WebhookDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,8 @@ class GatewayApp : Application() {
         private set
     lateinit var sender: SmsSender
         private set
+    lateinit var tunnel: CloudflaredTunnel
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -47,6 +50,7 @@ class GatewayApp : Application() {
         sims = SimRepository(this)
         webhooks = WebhookDispatcher(this, db.webhooks())
         sender = SmsSender(this, db.messages(), webhooks)
+        tunnel = CloudflaredTunnel(this, settings)
     }
 
     companion object {
