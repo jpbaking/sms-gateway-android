@@ -23,6 +23,32 @@ Android and Google Play Protect are cautious about sideloaded apps that use SMS.
 5. "Could not start on port …" in the app means another app is using that port. Pick another one.
 6. With [HTTPS](https.md) on, other devices can only use `https://` and the HTTPS port (8443 by
    default), unless you allowed plain HTTP too.
+7. Check **Settings → Server → Who can connect**. In **Tunnel only** nothing on the network can
+   connect, and the Status tab shows no local address.
+
+## Every request returns 403 with an empty body
+
+The gateway refused your address before it looked at the API key. With HTTPS the connection is
+closed instead, before the TLS handshake.
+
+- In **Local network** mode (the default) the caller must be on the same Wi-Fi, Ethernet or VPN as
+  the phone, with a private address. Connections over mobile data and from public addresses are
+  refused.
+- Using Tailscale? Turn on **Also allow Tailscale addresses** under **Settings → Server**.
+- Port-forwarding from your router, or another VPN with unusual addresses? Those arrive from
+  addresses the gateway doesn't count as local. Use the [Cloudflare Tunnel](tunnel.md), or switch to
+  **Anywhere** if you understand what that opens up.
+
+See [Who can connect](security.md#who-can-connect).
+
+## A request returns 403 with `"scope"` in the body
+
+The key is valid but isn't allowed to do that. The body names the missing scope, for example
+`{"error": "…", "scope": "webhooks"}`. Open **Settings → API keys → Permissions** on that key and
+tick it. See [Scopes](api.md#scopes).
+
+`403` from `POST` or `DELETE /api/v1/webhooks` without `"scope"` means **Manage webhooks on this
+phone only** is on. Add the webhook under **Settings → Webhooks** instead.
 
 ## HTTPS: "certificate verify failed" or "unable to get local issuer certificate"
 
@@ -42,7 +68,8 @@ in the app), or generate a new self-signed certificate after the phone's IP chan
 ## Every request returns 401
 
 - Send the key as `X-API-Key: <key>` or `Authorization: Bearer <key>`.
-- The key may have been regenerated or revoked. Check the **API keys** list in the app.
+- The key may have been regenerated or revoked, or switched off. Check the **API keys** list in
+  the app.
 - A fresh install has no keys. Create one first.
 
 ## Messages stay at `sending` or end as `failed`
@@ -66,6 +93,9 @@ accepted the message.
   server is back. See [Retries](webhooks.md#retries).
 - `https://` server with a self-signed or dev/test certificate? The phone rejects it. Register the
   webhook with `"insecure": true`, or give the server a certificate the phone trusts.
+- Check **Settings → Webhooks**. A webhook that is switched off gets nothing, and neither does one
+  whose API key is switched off (it says "Paused, because its API key is off"). Revoking a key
+  deletes its webhooks.
 - `GET /api/v1/messages?direction=in` lists everything received, whatever happened to the webhooks.
 
 ## The database is getting big

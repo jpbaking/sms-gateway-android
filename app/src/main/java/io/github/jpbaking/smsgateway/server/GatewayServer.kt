@@ -1,15 +1,20 @@
 package io.github.jpbaking.smsgateway.server
 
+import android.util.Log
 import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.ApiKeyEntity
 import io.github.jpbaking.smsgateway.data.Direction
 import io.github.jpbaking.smsgateway.data.MessageEntity
 import io.github.jpbaking.smsgateway.data.MessageStatus
+import io.github.jpbaking.smsgateway.data.Scope
 import io.github.jpbaking.smsgateway.data.SecretBox
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.data.StoredHeader
+import io.github.jpbaking.smsgateway.data.ShortCodes
 import io.github.jpbaking.smsgateway.data.WebhookEntity
+import io.github.jpbaking.smsgateway.data.WebhookOrigin
+import io.github.jpbaking.smsgateway.net.AccessPolicy
 import io.github.jpbaking.smsgateway.webhook.WebhookEvent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -45,10 +50,13 @@ class GatewayServer(private val app: GatewayApp) {
 
     val isRunning: Boolean get() = server != null
 
-    /** [host] is "0.0.0.0" to accept connections from the network, or "127.0.0.1" for this phone only. */
-    fun start(port: Int, host: String = "0.0.0.0") {
+    /**
+     * [host] is "0.0.0.0" to accept connections from the network, or "127.0.0.1" for this phone
+     * only. [policy] then decides, per request, whether the caller's address is let in.
+     */
+    fun start(port: Int, host: String = "0.0.0.0", policy: AccessPolicy = AccessPolicy.OPEN) {
         if (server != null) return
-        server = embeddedServer(CIO, port = port, host = host) { module() }
+        server = embeddedServer(CIO, port = port, host = host) { module(policy) }
             .also { it.start(wait = false) }
     }
 
@@ -57,19 +65,26 @@ class GatewayServer(private val app: GatewayApp) {
         server = null
     }
 
-    private fun Application.module() {
+    private fun Application.module(policy: AccessPolicy) {
+        // Before anything else, including the API key: is this caller's address let in at all?
+        restrictCallers(policy::allows)
         install(ContentNegotiation) { json(apiJson) }
         install(StatusPages) {
             exception<BadRequestException> { call, cause ->
                 call.respond(HttpStatusCode.BadRequest, ErrorDto(cause.message ?: "Bad request"))
             }
             exception<Throwable> { call, cause ->
-                call.respond(HttpStatusCode.InternalServerError, ErrorDto(cause.message ?: "Internal error"))
+                // The detail stays on the phone: it can name tables, files or internal state.
+                Log.e(TAG, "Request failed", cause)
+                call.respond(HttpStatusCode.InternalServerError, ErrorDto("Internal error"))
             }
         }
 
         routing {
+            // Without a key: a bare 200, enough to tell the server is up. Details need a valid key.
             get("/health") {
+                if (presentedKey() == null) return@get call.respond(HttpStatusCode.OK)
+                authorized() ?: return@get
                 call.respond(HealthDto("ok", BuildConfig.VERSION_NAME))
             }
 
@@ -80,10 +95,13 @@ class GatewayServer(private val app: GatewayApp) {
                 }
 
                 post("/messages") {
-                    val caller = authorized() ?: return@post
+                    val caller = authorized(Scope.SEND) ?: return@post
                     val req = call.receive<SendRequest>()
                     if (req.to.isBlank()) return@post badRequest("'to' is required")
                     if (req.body.isEmpty()) return@post badRequest("'body' is required")
+                    if (ShortCodes.isShortCode(req.to) && !caller.has(Scope.SEND_SHORTCODE)) {
+                        return@post missingScope(Scope.SEND_SHORTCODE, "Sending to a short code")
+                    }
 
                     val sim = app.sims.resolve(req.simSlot, req.subscriptionId)
                     if (sim == null && (req.simSlot != null || req.subscriptionId != null)) {
@@ -112,8 +130,11 @@ class GatewayServer(private val app: GatewayApp) {
                     call.respond(HttpStatusCode.Accepted, MessageDto.from(message))
                 }
 
+                // With `read`: every message. With only `send`: the messages this key sent.
                 get("/messages") {
-                    authorized() ?: return@get
+                    val caller = authorized() ?: return@get
+                    val ownOnly = !caller.has(Scope.READ)
+                    if (ownOnly && !caller.has(Scope.SEND)) return@get missingScope(Scope.READ, "Reading messages")
                     val direction = when (call.request.queryParameters["direction"]?.lowercase()) {
                         null, "" -> null
                         "in" -> Direction.IN
@@ -122,13 +143,21 @@ class GatewayServer(private val app: GatewayApp) {
                     }
                     val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 500)
                     val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
-                    val items = app.db.messages().list(direction, limit, offset).map(MessageDto::from)
-                    call.respond(MessageList(items, limit, offset))
+                    val items = when {
+                        !ownOnly -> app.db.messages().list(direction, limit, offset)
+                        direction == Direction.IN -> return@get missingScope(Scope.READ, "Reading incoming messages")
+                        else -> app.db.messages().listSentBy(caller.id, limit, offset)
+                    }
+                    call.respond(MessageList(items.map(MessageDto::from), limit, offset))
                 }
 
                 get("/messages/{id}") {
-                    authorized() ?: return@get
+                    val caller = authorized() ?: return@get
+                    val ownOnly = !caller.has(Scope.READ)
+                    if (ownOnly && !caller.has(Scope.SEND)) return@get missingScope(Scope.READ, "Reading messages")
                     val message = app.db.messages().get(call.parameters["id"].orEmpty())
+                        // A key without `read` sees only what it sent; anything else looks absent.
+                        ?.takeIf { !ownOnly || it.apiKeyId == caller.id }
                         ?: return@get call.respond(HttpStatusCode.NotFound, ErrorDto("Message not found"))
                     call.respond(MessageDto.from(message))
                 }
@@ -137,7 +166,7 @@ class GatewayServer(private val app: GatewayApp) {
                     // Off means not served at all: the same bare 404 as an unknown path, before
                     // the key is even checked.
                     if (!app.events.enabled.value) return@get call.respond(HttpStatusCode.NotFound)
-                    authorized() ?: return@get
+                    val caller = authorized(Scope.EVENTS) ?: return@get
                     val lastId = call.request.headers["Last-Event-ID"] ?: call.request.queryParameters["lastEventId"]
                     val lastEventId = when {
                         lastId.isNullOrBlank() -> null
@@ -158,7 +187,9 @@ class GatewayServer(private val app: GatewayApp) {
                     call.response.header("X-Accel-Buffering", "no")
                     call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
                         try {
-                            app.events.serve(this, lastEventId, events)
+                            app.events.serve(this, lastEventId, events, caller.id) {
+                                app.apiKeys.stillAllows(caller, Scope.EVENTS)
+                            }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (_: Exception) {
@@ -167,13 +198,15 @@ class GatewayServer(private val app: GatewayApp) {
                     }
                 }
 
+                // A key sees and removes only the webhooks it registered. The phone manages all of them.
                 get("/webhooks") {
-                    authorized() ?: return@get
-                    call.respond(app.db.webhooks().all().map(WebhookDto::from))
+                    val caller = authorized(Scope.WEBHOOKS) ?: return@get
+                    call.respond(app.db.webhooks().byKey(caller.id).map(WebhookDto::from))
                 }
 
                 post("/webhooks") {
-                    authorized() ?: return@post
+                    val caller = authorized(Scope.WEBHOOKS) ?: return@post
+                    if (app.settings.webhooksPhoneOnly) return@post phoneOnly()
                     val req = call.receive<CreateWebhookRequest>()
                     val scheme = runCatching { URI(req.url).scheme?.lowercase() }.getOrNull()
                     if (scheme != "http" && scheme != "https") {
@@ -204,14 +237,20 @@ class GatewayServer(private val app: GatewayApp) {
                             },
                         ),
                         insecure = req.insecure,
+                        createdByKeyId = caller.id,
+                        createdByKeyName = caller.name,
+                        createdVia = WebhookOrigin.API,
                     )
                     app.db.webhooks().insert(hook)
+                    // A new place for incoming SMS to go is worth the owner's attention.
+                    runCatching { app.notifier.webhookAdded(caller.name, hook.url) }
                     call.respond(HttpStatusCode.Created, WebhookDto.from(hook, revealSecret = true))
                 }
 
                 delete("/webhooks/{id}") {
-                    authorized() ?: return@delete
-                    val removed = app.db.webhooks().delete(call.parameters["id"].orEmpty())
+                    val caller = authorized(Scope.WEBHOOKS) ?: return@delete
+                    if (app.settings.webhooksPhoneOnly) return@delete phoneOnly()
+                    val removed = app.db.webhooks().deleteOwned(call.parameters["id"].orEmpty(), caller.id)
                     if (removed == 0) {
                         call.respond(HttpStatusCode.NotFound, ErrorDto("Webhook not found"))
                     } else {
@@ -222,18 +261,45 @@ class GatewayServer(private val app: GatewayApp) {
         }
     }
 
+    /** The key sent as `X-API-Key: <key>` or `Authorization: Bearer <key>`, or null if there is none. */
+    private fun RoutingContext.presentedKey(): String? =
+        (
+            call.request.headers["X-API-Key"]
+                ?: call.request.headers[HttpHeaders.Authorization]
+                    ?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }
+                    ?.substring(7)?.trim()
+            )?.takeIf { it.isNotEmpty() }
+
     /**
-     * Accepts `X-API-Key: <key>` or `Authorization: Bearer <key>` and returns the matching key.
-     * Responds 401 and returns null otherwise.
+     * Returns the caller's key if it is valid, enabled and has [scope] (when one is given).
+     * Otherwise responds and returns null: 401 for a missing, unknown or disabled key, 403 for a
+     * key without the scope.
      */
-    private suspend fun RoutingContext.authorized(): ApiKeyEntity? {
-        val provided = call.request.headers["X-API-Key"]
-            ?: call.request.headers[HttpHeaders.Authorization]
-                ?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }
-                ?.substring(7)?.trim()
-        val key = provided?.takeIf { it.isNotEmpty() }?.let { app.apiKeys.authenticate(it) }
-        if (key == null) call.respond(HttpStatusCode.Unauthorized, ErrorDto("Missing or invalid API key"))
+    private suspend fun RoutingContext.authorized(scope: Scope? = null): ApiKeyEntity? {
+        val key = presentedKey()?.let { app.apiKeys.authenticate(it) }
+        if (key == null) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorDto("Missing, invalid or disabled API key"))
+            return null
+        }
+        if (scope != null && !key.has(scope)) {
+            missingScope(scope, "This request")
+            return null
+        }
         return key
+    }
+
+    private suspend fun RoutingContext.missingScope(scope: Scope, what: String) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            ScopeErrorDto("$what needs the '${scope.wire}' scope, which this API key doesn't have.", scope.wire),
+        )
+    }
+
+    private suspend fun RoutingContext.phoneOnly() {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            ErrorDto("Webhooks are managed on the phone only (Settings > Webhooks in the gateway app)."),
+        )
     }
 
     /** Returns an error message, or null if the headers are fine. */
@@ -258,6 +324,7 @@ class GatewayServer(private val app: GatewayApp) {
     }
 
     private companion object {
+        const val TAG = "GatewayServer"
         const val MAX_HEADERS = 20
 
         // RFC 9110 token characters.

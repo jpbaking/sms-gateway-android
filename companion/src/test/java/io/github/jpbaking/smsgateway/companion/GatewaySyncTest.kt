@@ -107,6 +107,18 @@ class GatewaySyncTest {
     }
 
     @Test
+    fun `falls back to polling when the key may not follow the stream`() = runBlocking {
+        eventsResponse = {
+            MockResponse().setResponseCode(403).setBody("""{"error":"needs the 'events' scope","scope":"events"}""")
+        }
+        val sync = sync()
+        val job = launch(Dispatchers.Default) { sync.runWhileVisible() }
+        withTimeout(5_000) { sync.state.first { it == LinkState.Polling } }
+        assertEquals(listOf("m1"), sync.messages.value.map { it.id })
+        job.cancelAndJoin()
+    }
+
+    @Test
     fun `reports a rejected API key`() = runBlocking {
         val sync = sync(key = "wrong")
         val job = launch(Dispatchers.Default) { sync.runWhileVisible() }

@@ -23,6 +23,10 @@ abstract class MessageDao {
     )
     abstract suspend fun list(direction: Direction?, limit: Int, offset: Int): List<MessageEntity>
 
+    /** Outgoing messages sent with one API key, newest first. */
+    @Query("SELECT * FROM messages WHERE apiKeyId = :apiKeyId ORDER BY createdAt DESC LIMIT :limit OFFSET :offset")
+    abstract suspend fun listSentBy(apiKeyId: String, limit: Int, offset: Int): List<MessageEntity>
+
     @Query("SELECT * FROM messages ORDER BY createdAt DESC LIMIT :limit")
     abstract fun observeRecent(limit: Int): Flow<List<MessageEntity>>
 
@@ -76,8 +80,25 @@ interface WebhookDao {
     @Query("SELECT * FROM webhooks ORDER BY createdAt")
     suspend fun all(): List<WebhookEntity>
 
+    @Query("SELECT * FROM webhooks ORDER BY createdAt")
+    fun observeAll(): Flow<List<WebhookEntity>>
+
+    /** The webhooks one API key registered. */
+    @Query("SELECT * FROM webhooks WHERE createdByKeyId = :keyId ORDER BY createdAt")
+    suspend fun byKey(keyId: String): List<WebhookEntity>
+
+    @Query("UPDATE webhooks SET enabled = :enabled WHERE id = :id")
+    suspend fun setEnabled(id: String, enabled: Boolean): Int
+
     @Query("DELETE FROM webhooks WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    /** Deletes a webhook only if [keyId] registered it. */
+    @Query("DELETE FROM webhooks WHERE id = :id AND createdByKeyId = :keyId")
+    suspend fun deleteOwned(id: String, keyId: String): Int
+
+    @Query("DELETE FROM webhooks WHERE createdByKeyId = :keyId")
+    suspend fun deleteByKey(keyId: String): Int
 }
 
 @Dao
@@ -102,6 +123,13 @@ interface ApiKeyDao {
 
     @Query("UPDATE api_keys SET lastUsedAt = :now WHERE id = :id")
     suspend fun touch(id: String, now: Long)
+
+    @Query("UPDATE api_keys SET enabled = :enabled WHERE id = :id")
+    suspend fun setEnabled(id: String, enabled: Boolean): Int
+
+    /** Saving a key's scopes also counts as having reviewed it. */
+    @Query("UPDATE api_keys SET scopes = :scopes, needsReview = 0 WHERE id = :id")
+    suspend fun setScopes(id: String, scopes: String): Int
 
     @Query("DELETE FROM api_keys WHERE id = :id")
     suspend fun delete(id: String): Int

@@ -20,6 +20,11 @@ android {
         targetSdk = 35
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "0.1.0-dev"
+
+        // Quick tunnels (a public trycloudflare.com URL with no Cloudflare account) make it too
+        // easy to put the gateway on the internet without meaning to. While this is false the
+        // option is hidden and the tunnel refuses to start in that mode.
+        buildConfigField("boolean", "QUICK_TUNNEL_ENABLED", "false")
     }
 
     signingConfigs {
@@ -57,6 +62,15 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        // Robolectric (the database migration test) needs the merged manifest and resources.
+        unitTests.isIncludeAndroidResources = true
+        // One JVM per test class. Robolectric installs its own security providers (Conscrypt
+        // first) for the whole JVM, which changes the TLS implementation that later, plain JVM
+        // tests such as TlsTest get. A fresh JVM per class keeps each test's environment its own.
+        unitTests.all { it.forkEvery = 1 }
     }
 
     packaging {
@@ -114,4 +128,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    // Runs the database migration test on the JVM, with a real SQLite.
+    testImplementation(libs.robolectric)
 }

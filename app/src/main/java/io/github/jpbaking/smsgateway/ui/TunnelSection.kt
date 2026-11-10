@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.TunnelMode
 import io.github.jpbaking.smsgateway.tunnel.TunnelState
@@ -106,13 +107,15 @@ private fun TunnelSettings(app: GatewayApp, port: Int) {
                 style = MaterialTheme.typography.bodySmall,
             )
             ValueRow("Tunnel", onOff(settings.tunnelEnabled))
-            ValueRow(
-                "Kind",
-                when (settings.tunnelMode) {
-                    TunnelMode.TOKEN -> "My Cloudflare tunnel"
-                    TunnelMode.QUICK -> "Quick tunnel"
-                },
-            )
+            if (BuildConfig.QUICK_TUNNEL_ENABLED) {
+                ValueRow(
+                    "Kind",
+                    when (settings.tunnelMode) {
+                        TunnelMode.TOKEN -> "My Cloudflare tunnel"
+                        TunnelMode.QUICK -> "Quick tunnel"
+                    },
+                )
+            }
             if (settings.tunnelMode == TunnelMode.TOKEN) {
                 ValueRow("Token", if (hasToken) "Saved" else "Not set")
                 ValueRow("Public hostname", settings.tunnelHostname.ifBlank { "Not set" })
@@ -141,17 +144,20 @@ private fun TunnelSettings(app: GatewayApp, port: Int) {
                 { enabled = it },
                 detail = "Runs while the server is running.",
             )
-            Column {
-                RadioOption(
-                    selected = mode == TunnelMode.TOKEN,
-                    title = "My Cloudflare tunnel",
-                    detail = "Uses a tunnel token from the Cloudflare dashboard. Your own hostname, which never changes.",
-                ) { mode = TunnelMode.TOKEN }
-                RadioOption(
-                    selected = mode == TunnelMode.QUICK,
-                    title = "Quick tunnel (for testing)",
-                    detail = "No account needed. Gets a random trycloudflare.com URL that changes every time it starts.",
-                ) { mode = TunnelMode.QUICK }
+            // With quick tunnels switched off there is only one kind, so there is nothing to pick.
+            if (BuildConfig.QUICK_TUNNEL_ENABLED) {
+                Column {
+                    RadioOption(
+                        selected = mode == TunnelMode.TOKEN,
+                        title = "My Cloudflare tunnel",
+                        detail = "Uses a tunnel token from the Cloudflare dashboard. Your own hostname, which never changes.",
+                    ) { mode = TunnelMode.TOKEN }
+                    RadioOption(
+                        selected = mode == TunnelMode.QUICK,
+                        title = "Quick tunnel (for testing)",
+                        detail = "No account needed. Gets a random trycloudflare.com URL that changes every time it starts.",
+                    ) { mode = TunnelMode.QUICK }
+                }
             }
             if (mode == TunnelMode.TOKEN) {
                 Text(

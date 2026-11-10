@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.TlsSource
 import io.github.jpbaking.smsgateway.data.TunnelMode
+import io.github.jpbaking.smsgateway.net.ListenMode
 import io.github.jpbaking.smsgateway.service.GatewayService
 import io.github.jpbaking.smsgateway.service.localIpv4Addresses
 import io.github.jpbaking.smsgateway.tls.TlsMaterial
@@ -85,9 +86,13 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
     var httpsEnabled by rememberSaveable { mutableStateOf(settings.httpsEnabled) }
     var httpsPort by rememberSaveable { mutableStateOf(settings.httpsPort.toString()) }
     var httpOnLan by rememberSaveable { mutableStateOf(settings.httpOnLan) }
+    var listenMode by rememberSaveable { mutableStateOf(settings.listenMode) }
+    var allowTailscale by rememberSaveable { mutableStateOf(settings.allowTailscale) }
     var pending by remember { mutableStateOf<PendingChange?>(null) }
 
     fun reset() {
+        listenMode = settings.listenMode
+        allowTailscale = settings.allowTailscale
         port = settings.port.toString()
         autoStart = settings.autoStart
         httpsEnabled = settings.httpsEnabled
@@ -103,7 +108,9 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
             autoStart != settings.autoStart ||
             httpsEnabled != settings.httpsEnabled ||
             httpsPort != settings.httpsPort.toString() ||
-            httpOnLan != settings.httpOnLan,
+            httpOnLan != settings.httpOnLan ||
+            listenMode != settings.listenMode ||
+            allowTailscale != settings.allowTailscale,
         onDiscard = ::reset,
         onSave = save@{
             val newPort = port.toIntOrNull()?.takeIf { it in 1024..65535 }
@@ -119,6 +126,27 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
 
             // What changes for clients, for the confirmation.
             val effects = buildList {
+                if (listenMode != settings.listenMode) {
+                    add(
+                        when (listenMode) {
+                            ListenMode.TUNNEL_ONLY -> "Only the Cloudflare Tunnel can reach the server. Devices on " +
+                                "Wi-Fi lose access, and HTTPS isn't served."
+                            ListenMode.LAN -> "Only devices on the local network can connect, plus the Cloudflare " +
+                                "Tunnel. Connections over mobile data or from public addresses are refused."
+                            ListenMode.ANYWHERE -> "Anything that can reach this phone can connect, which can " +
+                                "include the internet. Only the API key protects it."
+                        },
+                    )
+                }
+                if (allowTailscale != settings.allowTailscale && listenMode == ListenMode.LAN) {
+                    add(
+                        if (allowTailscale) {
+                            "Addresses in 100.64.0.0/10 (Tailscale) are let in."
+                        } else {
+                            "Addresses in 100.64.0.0/10 (Tailscale) are refused."
+                        },
+                    )
+                }
                 if (newPort != settings.port) {
                     add("Plain HTTP moves from port ${settings.port} to $newPort.")
                     if (settings.tunnelEnabled && settings.tunnelMode == TunnelMode.TOKEN) {
@@ -141,6 +169,8 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
                 settings.httpsEnabled = httpsEnabled
                 settings.httpsPort = newHttpsPort
                 settings.httpOnLan = httpOnLan
+                settings.listenMode = listenMode
+                settings.allowTailscale = allowTailscale
                 if (running && effects.isNotEmpty()) GatewayService.restart(context)
                 editing = false
                 reset()
@@ -158,15 +188,26 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
             null
         },
         view = {
+            ValueRow("Who can connect", settings.listenMode.label)
+            Text(settings.listenMode.detail, style = MaterialTheme.typography.bodySmall)
+            if (settings.listenMode == ListenMode.LAN) {
+                ValueRow("Tailscale addresses", if (settings.allowTailscale) "Allowed" else "Refused")
+            }
+            HorizontalDivider()
             ValueRow("HTTP port", settings.port.toString(), monospace = true)
-            if (settings.httpsEnabled) {
+            if (settings.httpsEnabled && settings.listenMode != ListenMode.TUNNEL_ONLY) {
                 ValueRow("Plain HTTP from other devices", if (settings.httpOnLan) "Allowed" else "Blocked")
                 PlainHttpExplainer(settings.httpOnLan)
             }
             ValueRow("Start on boot", onOff(settings.autoStart))
             HorizontalDivider()
             ValueRow("Serve HTTPS", onOff(settings.httpsEnabled))
-            if (settings.httpsEnabled) {
+            if (settings.httpsEnabled && settings.listenMode == ListenMode.TUNNEL_ONLY) {
+                Text(
+                    "Not served while only the tunnel can connect: Cloudflare already encrypts the tunnel.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else if (settings.httpsEnabled) {
                 ValueRow("HTTPS port", settings.httpsPort.toString(), monospace = true)
             } else {
                 Text(
@@ -176,6 +217,21 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
             }
         },
         edit = {
+            Text("Who can connect", style = MaterialTheme.typography.titleSmall)
+            Column {
+                ListenMode.entries.forEach { m ->
+                    RadioOption(selected = listenMode == m, title = m.label, detail = m.detail) { listenMode = m }
+                }
+            }
+            if (listenMode == ListenMode.LAN) {
+                SwitchRow(
+                    "Also allow Tailscale addresses",
+                    allowTailscale,
+                    { allowTailscale = it },
+                    detail = "100.64.0.0/10. Leave off unless you use Tailscale: mobile carriers use the same range.",
+                )
+            }
+            HorizontalDivider()
             OutlinedTextField(
                 value = port,
                 onValueChange = { port = digits(it) },

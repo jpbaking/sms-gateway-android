@@ -35,6 +35,8 @@ class WebhookWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         // Read the webhook fresh on every attempt: deleting it stops retries, and secrets stay
         // encrypted in the database instead of being copied into WorkManager's own storage.
         val hook = app.db.webhooks().get(webhookId) ?: return@withContext Result.success()
+        // Switched off, or its API key was disabled, since this was queued: drop it, don't retry.
+        if (!app.webhooks.isActive(hook)) return@withContext Result.success()
         val url = hook.url
         val secret = SecretBox.decrypt(hook.secret)
         val extraHeaders = hook.storedHeaders().map {

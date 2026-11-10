@@ -1,6 +1,7 @@
 package io.github.jpbaking.smsgateway.data
 
 import android.content.Context
+import io.github.jpbaking.smsgateway.net.ListenMode
 import io.github.jpbaking.smsgateway.tls.TlsMaterial
 import java.security.SecureRandom
 
@@ -86,6 +87,29 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_HTTP_ON_LAN, false)
         set(value) = prefs.edit().putBoolean(KEY_HTTP_ON_LAN, value).apply()
 
+    /** Who may connect to the server. New installs and upgrades both start on [ListenMode.LAN]. */
+    var listenMode: ListenMode
+        get() = ListenMode.entries.firstOrNull { it.name == prefs.getString(KEY_LISTEN_MODE, null) } ?: ListenMode.LAN
+        set(value) = prefs.edit().putString(KEY_LISTEN_MODE, value.name).apply()
+
+    /**
+     * In [ListenMode.LAN], also let in 100.64.0.0/10, which Tailscale uses. Off by default,
+     * because carriers use the same range behind their NAT.
+     */
+    var allowTailscale: Boolean
+        get() = prefs.getBoolean(KEY_ALLOW_TAILSCALE, false)
+        set(value) = prefs.edit().putBoolean(KEY_ALLOW_TAILSCALE, value).apply()
+
+    /** When true, the API can't add or remove webhooks: that's done in the app only. */
+    var webhooksPhoneOnly: Boolean
+        get() = prefs.getBoolean(KEY_WEBHOOKS_PHONE_ONLY, false)
+        set(value) = prefs.edit().putBoolean(KEY_WEBHOOKS_PHONE_ONLY, value).apply()
+
+    /** Set when an update turned off a quick tunnel that was in use, until the user dismisses the notice. */
+    var quickTunnelRemovedNotice: Boolean
+        get() = prefs.getBoolean(KEY_QUICK_TUNNEL_NOTICE, false)
+        set(value) = prefs.edit().putBoolean(KEY_QUICK_TUNNEL_NOTICE, value).apply()
+
     /** Where the HTTPS certificate came from, or null if none is set up. */
     val tlsSource: TlsSource?
         get() = TlsSource.entries.firstOrNull { it.name == prefs.getString(KEY_TLS_SOURCE, null) }
@@ -115,6 +139,10 @@ class Settings(context: Context) {
     companion object {
         const val DEFAULT_PORT = 8080
         const val DEFAULT_HTTPS_PORT = 8443
+        private const val KEY_LISTEN_MODE = "listen_mode"
+        private const val KEY_ALLOW_TAILSCALE = "allow_tailscale"
+        private const val KEY_WEBHOOKS_PHONE_ONLY = "webhooks_phone_only"
+        private const val KEY_QUICK_TUNNEL_NOTICE = "quick_tunnel_removed_notice"
         private const val KEY_EVENT_STREAM = "event_stream_enabled"
         private const val KEY_HTTPS_ENABLED = "https_enabled"
         private const val KEY_HTTPS_PORT = "https_port"
@@ -147,7 +175,11 @@ enum class TunnelMode {
     /** A named tunnel from the user's Cloudflare account, run with its token. Stable hostname. */
     TOKEN,
 
-    /** A throwaway trycloudflare.com tunnel. No account needed; the URL changes on every start. */
+    /**
+     * A throwaway trycloudflare.com tunnel. No account needed; the URL changes on every start.
+     * Only offered when `BuildConfig.QUICK_TUNNEL_ENABLED` is true, which it isn't: it makes it
+     * too easy to put the gateway on the internet without meaning to.
+     */
     QUICK,
 }
 

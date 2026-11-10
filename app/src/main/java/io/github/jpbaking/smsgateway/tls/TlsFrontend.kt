@@ -30,6 +30,11 @@ class TlsFrontend(
     private val backendPort: Int,
     private val backendHost: String = "127.0.0.1",
     private val maxConnections: Int = 64,
+    /**
+     * Asked for every new connection, with the address it came from and the phone's own address
+     * it arrived at, before the TLS handshake. False closes the connection at once.
+     */
+    private val accept: (remote: InetAddress?, local: InetAddress?) -> Boolean = { _, _ -> true },
     /** Gets unexpected errors. Kept out of android.util.Log so this class runs in unit tests. */
     private val onError: (String, Throwable) -> Unit = { _, _ -> },
 ) {
@@ -76,6 +81,10 @@ class TlsFrontend(
                 } catch (_: InterruptedException) {
                     return
                 }
+                continue
+            }
+            if (!accept(client.inetAddress, client.localAddress)) {
+                runCatching { client.close() }
                 continue
             }
             if (active.incrementAndGet() > maxConnections) {

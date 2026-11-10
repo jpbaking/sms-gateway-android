@@ -2,6 +2,7 @@ package io.github.jpbaking.smsgateway.tunnel
 
 import android.content.Context
 import android.util.Log
+import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.data.TunnelMode
 import kotlinx.coroutines.CancellationException
@@ -99,6 +100,9 @@ class CloudflaredTunnel(private val context: Context, private val settings: Sett
                 when {
                     !serverRunning || !settings.tunnelEnabled -> _state.value = TunnelState.Off
                     !isBundled -> _state.value = TunnelState.NotBundled
+                    // Quick tunnels are switched off in this build, whatever the saved setting says.
+                    settings.tunnelMode == TunnelMode.QUICK && !BuildConfig.QUICK_TUNNEL_ENABLED ->
+                        _state.value = TunnelState.Off
                     settings.tunnelMode == TunnelMode.TOKEN && settings.tunnelToken.isNullOrBlank() ->
                         _state.value = TunnelState.MissingToken
                     else -> {
@@ -251,6 +255,7 @@ class CloudflaredTunnel(private val context: Context, private val settings: Sett
     }
 
     private fun spawn(mode: TunnelMode, token: String?, port: Int): Process {
+        check(mode != TunnelMode.QUICK || BuildConfig.QUICK_TUNNEL_ENABLED) { "Quick tunnels are switched off" }
         val home = File(context.filesDir, "cloudflared").apply { mkdirs() }
         val args = mutableListOf(binary.path, "tunnel", "--no-autoupdate", "--grace-period", "1s")
         val edges = EdgeAddresses.resolve()

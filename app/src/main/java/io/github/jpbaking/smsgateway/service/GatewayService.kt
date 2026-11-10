@@ -17,6 +17,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.R
+import io.github.jpbaking.smsgateway.net.AccessPolicy
+import io.github.jpbaking.smsgateway.net.ListenMode
 import io.github.jpbaking.smsgateway.server.GatewayServer
 import io.github.jpbaking.smsgateway.tls.TlsFrontend
 import io.github.jpbaking.smsgateway.ui.MainActivity
@@ -69,8 +71,11 @@ class GatewayService : Service() {
         }
         val settings = app.settings
         val port = settings.port
-        val httpsPort = settings.httpsPort.takeIf { settings.httpsEnabled }
-        val httpLocalOnly = httpsPort != null && !settings.httpOnLan
+        val mode = settings.listenMode
+        val tunnelOnly = mode == ListenMode.TUNNEL_ONLY
+        // Tunnel only: nothing but this phone connects, so there is nobody to serve HTTPS to.
+        val httpsPort = settings.httpsPort.takeIf { settings.httpsEnabled && !tunnelOnly }
+        val httpLocalOnly = tunnelOnly || (httpsPort != null && !settings.httpOnLan)
         goForeground(port, httpsPort, httpLocalOnly)
         if (!server.isRunning) {
             try {
@@ -79,12 +84,15 @@ class GatewayService : Service() {
                     settings.tlsMaterial()
                         ?: throw IllegalStateException("HTTPS is on, but no certificate is set up")
                 }
-                server.start(port, host = if (httpLocalOnly) "127.0.0.1" else "0.0.0.0")
+                app.cellular.start()
+                val policy = AccessPolicy(mode, settings.allowTailscale, app.cellular::contains)
+                server.start(port, host = if (httpLocalOnly) "127.0.0.1" else "0.0.0.0", policy = policy)
                 if (material != null && httpsPort != null) {
                     tls = TlsFrontend(
                         sslContext = material.sslContext(),
                         port = httpsPort,
                         backendPort = port,
+                        accept = policy::allows,
                         onError = { message, e -> Log.w(TAG, message, e) },
                     ).also { it.start() }
                 }
@@ -107,7 +115,9 @@ class GatewayService : Service() {
     }
 
     override fun onDestroy() {
-        (application as GatewayApp).tunnel.setServerRunning(false)
+        val app = application as GatewayApp
+        app.tunnel.setServerRunning(false)
+        app.cellular.stop()
         tls?.stop()
         tls = null
         server.stop()
@@ -147,7 +157,7 @@ class GatewayService : Service() {
                 listOfNotNull(
                     httpsPort?.let { "https://$address:$it" },
                     "http://$address:$port".takeUnless { httpLocalOnly },
-                ).joinToString("  "),
+                ).joinToString("  ").ifEmpty { "Reachable through the tunnel only" },
             )
             .setOngoing(true)
             .setContentIntent(openApp)

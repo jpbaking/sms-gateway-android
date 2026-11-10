@@ -35,6 +35,26 @@ Is your server on a self-signed or dev/test certificate? Add `"insecure": true` 
 checks for that webhook only (see [Security](security.md#the-network)).
 For all options, including extra headers, see the [API reference](api.md#post-apiv1webhooks).
 
+The key needs the `webhooks` [scope](api.md#scopes), which a new key doesn't have until you turn
+on **Manage its own webhooks** for it. The phone shows a notification whenever a webhook is added
+this way.
+
+You can also add one in the app: **Settings → Webhooks → Add webhook**. Enter the URL, pick the
+events, and copy the signing secret it shows once. Extra headers and `insecure` can only be set
+through the API.
+
+## Manage them on the phone
+
+**Settings → Webhooks** lists every webhook, whoever added it, with the API key that registered it.
+
+- **Switch one off** to pause it. Nothing is sent while it's off, and events that happen meanwhile
+  aren't sent later either. `GET /api/v1/messages` still has them.
+- **Delete** removes it, and drops deliveries that were still waiting to be retried.
+- A webhook **follows its API key**: it is paused while the key is switched off, and deleted when
+  the key is revoked. Through the API, a key sees and removes only its own webhooks.
+- **Manage webhooks on this phone only** stops the API from adding or removing webhooks at all.
+  Turn it on if no integration needs to register webhooks by itself.
+
 ## Events
 
 | Event | When |

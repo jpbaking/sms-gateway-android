@@ -3,7 +3,9 @@ package io.github.jpbaking.smsgateway.companion
 import io.github.jpbaking.smsgateway.companion.api.GatewayUrl
 import io.github.jpbaking.smsgateway.companion.api.Tls
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GatewayUrlTest {
@@ -22,6 +24,16 @@ class GatewayUrlTest {
         assertNull(GatewayUrl.normalize(""))
         assertNull(GatewayUrl.normalize("ftp://example.com"))
         assertNull(GatewayUrl.normalize("https://"))
+    }
+
+    @Test
+    fun `plain http is flagged unless it stays on this phone`() {
+        listOf("http://192.168.1.50:8080", "http://10.0.0.2", "http://sms.example.com/x", "http://[fd00::2]:8080")
+            .forEach { assertTrue(it, GatewayUrl.isUnencrypted(it)) }
+        listOf("https://192.168.1.50:8443", "https://sms.example.com", "http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080")
+            .forEach { assertFalse(it, GatewayUrl.isUnencrypted(it)) }
+        // A name that only starts like localhost is still another machine.
+        assertTrue(GatewayUrl.isUnencrypted("http://localhost.example.com"))
     }
 
     @Test

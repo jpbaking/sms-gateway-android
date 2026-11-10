@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The optional Server-Sent Events stream at `GET /api/v1/events`.
@@ -21,6 +22,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  * `Last-Event-ID` and gets what it missed from the database, then live events. A comment line is
  * sent every [HEARTBEAT_MS] so proxies such as Cloudflare (which cuts idle connections at about
  * 100 seconds) keep the connection open.
+ *
+ * A stream belongs to the API key that opened it. The key is only checked when the stream opens,
+ * so [closeStreamsOf] ends a key's streams when the key is disabled, revoked or regenerated, or
+ * loses the `events` scope.
  */
 class EventStream(private val dao: EventDao, private val settings: Settings) {
 
@@ -34,6 +39,21 @@ class EventStream(private val dao: EventDao, private val settings: Settings) {
 
     /** How many clients are connected right now. */
     val clients: StateFlow<Int> = _clients.asStateFlow()
+
+    /** Bumped for a key by [closeStreamsOf]; a stream ends when its key's number has moved on. */
+    private val keyEpochs = ConcurrentHashMap<String, Long>()
+
+    /** Changes whenever any key's epoch does, to wake the streams that are waiting. */
+    private val epochChanges = MutableStateFlow(0L)
+
+    private fun epochOf(keyId: String): Long = keyEpochs[keyId] ?: 0L
+
+    /** Ends every open stream that [keyId] opened, within a moment. */
+    @Synchronized
+    fun closeStreamsOf(keyId: String) {
+        keyEpochs[keyId] = epochOf(keyId) + 1
+        epochChanges.update { it + 1 }
+    }
 
     /** Turning it off also ends open streams within a moment. */
     fun setEnabled(on: Boolean) {
@@ -50,12 +70,24 @@ class EventStream(private val dao: EventDao, private val settings: Settings) {
 
     /**
      * Writes the stream to [out] until the client goes away (the write fails), the stream is
-     * turned off, or the server stops.
+     * turned off, the key's streams are closed with [closeStreamsOf], or the server stops.
      *
      * @param lastEventId the client's `Last-Event-ID`, or null to start with new events only.
      * @param events wire names to send, or null for all.
+     * @param keyId the API key that opened the stream.
+     * @param stillAllowed asked once the stream is registered under [keyId], to catch a key that
+     *   was disabled or revoked between the request's own check and this point.
      */
-    suspend fun serve(out: ByteWriteChannel, lastEventId: Long?, events: Set<String>?) {
+    suspend fun serve(
+        out: ByteWriteChannel,
+        lastEventId: Long?,
+        events: Set<String>?,
+        keyId: String,
+        stillAllowed: suspend () -> Boolean = { true },
+    ) {
+        val epoch = epochOf(keyId)
+        if (!stillAllowed()) return
+        fun open() = _enabled.value && epochOf(keyId) == epoch
         _clients.update { it + 1 }
         try {
             val newest = dao.maxSeq() ?: 0L
@@ -68,7 +100,7 @@ class EventStream(private val dao: EventDao, private val settings: Settings) {
             out.flush()
             var lastWrite = System.currentTimeMillis()
 
-            while (_enabled.value) {
+            while (open()) {
                 val batch = dao.after(cursor, BATCH)
                 var wrote = false
                 for (e in batch) {
@@ -87,7 +119,7 @@ class EventStream(private val dao: EventDao, private val settings: Settings) {
                 val wait = HEARTBEAT_MS - (System.currentTimeMillis() - lastWrite)
                 val woke = wait > 0 && withTimeoutOrNull(wait) {
                     val after = cursor
-                    combine(latest, _enabled) { seq, on -> seq > after || !on }.first { it }
+                    combine(latest, _enabled, epochChanges) { seq, _, _ -> seq > after || !open() }.first { it }
                 } != null
                 if (!woke) {
                     out.writeStringUtf8(": ping\n\n")

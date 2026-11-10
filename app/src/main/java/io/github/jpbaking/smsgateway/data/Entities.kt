@@ -70,8 +70,32 @@ data class WebhookEntity(
      * dev/test servers. Only affects `https://` URLs.
      */
     @ColumnInfo(defaultValue = "0") val insecure: Boolean = false,
+    /** The API key that registered it, or null if it was added on the phone or before keys were recorded. */
+    val createdByKeyId: String? = null,
+    /** That key's name when the webhook was registered, for display. */
+    val createdByKeyName: String? = null,
+    /** One of the [WebhookOrigin] names. */
+    val createdVia: String = WebhookOrigin.UNKNOWN,
+    /** Off pauses deliveries without deleting the webhook. Toggled on the phone. */
+    val enabled: Boolean = true,
+    /** Reserved: SHA-256 fingerprints of the receiver's certificate to pin. Not used yet. */
+    val tlsFingerprints: String? = null,
 ) {
     fun storedHeaders(): List<StoredHeader> = headers?.let { StoredHeader.decode(it) }.orEmpty()
+
+    fun eventNames(): List<String> = events.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+}
+
+/** Where a webhook came from. Stored as text in [WebhookEntity.createdVia]. */
+object WebhookOrigin {
+    /** Registered before the gateway recorded who added webhooks. */
+    const val UNKNOWN = "unknown"
+
+    /** Registered through the API, by [WebhookEntity.createdByKeyId]. */
+    const val API = "api"
+
+    /** Added in the app, on the phone itself. */
+    const val PHONE = "phone"
 }
 
 /**
@@ -118,4 +142,25 @@ data class ApiKeyEntity(
     val keyPrefix: String,
     val createdAt: Long,
     val lastUsedAt: Long? = null,
-)
+    /** Comma separated [Scope] names: what this key may do. */
+    val scopes: String = Scope.format(Scope.NEW_KEY),
+    /** A disabled key is refused, its webhooks are paused and its event streams are closed. */
+    val enabled: Boolean = true,
+    /**
+     * Set on keys made before scopes existed. They keep every scope so nothing breaks, and the app
+     * asks the user to look at them. Cleared when the key's permissions are saved.
+     */
+    val needsReview: Boolean = false,
+    /** Reserved: country codes this key may send to, or null for all the gateway allows. Not used yet. */
+    val countries: String? = null,
+    /** Reserved: the most SMS parts per message, 0 for no limit. Not used yet. */
+    val maxParts: Int = 0,
+    /** Reserved: messages per minute, 0 for no limit. Not used yet. */
+    val ratePerMinute: Int = 0,
+    /** Reserved: messages per day, 0 for no limit. Not used yet. */
+    val ratePerDay: Int = 0,
+) {
+    fun scopeSet(): Set<Scope> = Scope.parse(scopes)
+
+    fun has(scope: Scope): Boolean = scope in scopeSet()
+}

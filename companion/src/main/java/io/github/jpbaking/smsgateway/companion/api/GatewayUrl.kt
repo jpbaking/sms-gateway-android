@@ -23,4 +23,15 @@ object GatewayUrl {
         if (rest.isEmpty() || rest.startsWith("/")) return null
         return "$scheme://$rest"
     }
+
+    /**
+     * True for a normalized `http://` URL to anything but this phone itself: the API key and every
+     * message then cross the network unencrypted.
+     */
+    fun isUnencrypted(normalized: String): Boolean {
+        if (!normalized.startsWith("http://")) return false
+        val authority = normalized.removePrefix("http://").substringBefore('/')
+        val host = if (authority.startsWith("[")) authority.substringBefore(']') + "]" else authority.substringBefore(':')
+        return host != "localhost" && host != "[::1]" && !host.startsWith("127.")
+    }
 }

@@ -27,7 +27,9 @@ runs on.
 ## Set up
 
 1. On the gateway phone, create an API key for this phone, e.g. `my-phone`
-   (**Settings → API keys → New key**).
+   (**Settings → API keys → New key**). Tick **Send messages**, **Read all messages** and, for
+   live updates, **Follow the event stream**. Leave the other permissions off: the app doesn't use
+   them.
 2. For live updates, turn on **Settings → Event stream** on the gateway.
 3. Install the companion APK on the other phone (Android 9 or newer). CI builds it on every pull
    request as the `gateway-sms-companion-debug-apk` artifact.
@@ -42,6 +44,14 @@ runs on.
 Typing just `192.168.1.50:8080` or `sms.example.com` works too: an IP address gets `http://`,
 a host name gets `https://`.
 
+With an `http://` address the app shows a warning: the API key and your messages cross the network
+unencrypted, so anyone on the same Wi-Fi could read them. Use it on a network you trust, or turn on
+[HTTPS](https.md) on the gateway.
+
+The gateway's default **Local network** mode only accepts connections from the same network. To use
+the app from elsewhere, connect through the [Cloudflare Tunnel](tunnel.md) or a VPN. See
+[Who can connect](security.md#who-can-connect).
+
 ## Self-signed certificates
 
 A gateway serving HTTPS with its own self-signed certificate isn't trusted by Android. When you tap
@@ -55,6 +65,11 @@ gets a new certificate, Save shows the new fingerprint to compare again.
 
 ## Good to know
 
-- The API key is stored encrypted with the Android Keystore.
+- The API key is stored encrypted with the Android Keystore, and is left out of backups and of the
+  copy Android makes when you move to a new phone. Enter it again there.
+- The app never follows a redirect. If the address you entered answers with one, the app says so
+  and sends the API key nowhere else. Enter the gateway's own URL.
+- Without the **Follow the event stream** permission the key can't open the stream, and the app
+  refreshes every 15 seconds while it's open instead.
 - The app loads the newest 500 messages, and **Load older messages** fetches more.
 - Messages the app sends are recorded on the gateway under its API key's name.
