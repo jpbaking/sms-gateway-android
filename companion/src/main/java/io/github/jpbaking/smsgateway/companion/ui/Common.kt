@@ -122,8 +122,8 @@ fun LinkBanner(state: LinkState, openSettings: () -> Unit) {
         LinkState.Live, LinkState.NotConfigured -> Unit
         LinkState.Connecting -> LinearProgressIndicator(Modifier.fillMaxWidth())
         LinkState.Polling -> Banner(
-            "Live updates are off on the gateway, so this refreshes every 15 seconds. " +
-                "Turn on Settings → Event stream in the gateway app.",
+            "No live updates, so this refreshes every 15 seconds. In the gateway app, turn on " +
+                "Settings → Event stream, and give this phone's API key the \"Follow the event stream\" permission.",
             error = false,
         )
         is LinkState.Offline -> Banner(

@@ -159,6 +159,15 @@ fun SettingsScreen(app: CompanionApp, back: () -> Unit) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (GatewayUrl.normalize(url)?.let(GatewayUrl::isUnencrypted) == true) {
+                Text(
+                    "This address isn't encrypted (http://). Anyone on the same network can read the API key " +
+                        "and your messages. Turn on HTTPS in the gateway app (Settings → Server) and use the " +
+                        "https:// address, or only use this on a network you trust.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },

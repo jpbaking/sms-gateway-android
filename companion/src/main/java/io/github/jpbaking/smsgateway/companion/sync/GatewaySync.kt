@@ -118,7 +118,10 @@ class GatewaySync(private val config: StateFlow<GatewayConfig?>, private val onF
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
-                if (e.code == 404) {
+                // 404: the stream is off on the gateway. 403: this key may not follow it. Either
+                // way the messages are still there to load, so fall back to polling. (If 403 means
+                // the gateway refuses this phone altogether, polling fails too and says so.)
+                if (e.code == 404 || e.code == 403) {
                     pollWhileStreamIsOff(c, cfg)
                     continue
                 }

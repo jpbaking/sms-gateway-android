@@ -52,7 +52,11 @@ class GatewayClient(val config: GatewayConfig) {
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS),
+            .writeTimeout(30, TimeUnit.SECONDS)
+            // The gateway never redirects. Following one would send the API key (a custom header,
+            // which OkHttp keeps across hosts) to wherever the redirect points.
+            .followRedirects(false)
+            .followSslRedirects(false),
         config.pinnedSha256,
     ).build()
 
@@ -139,6 +143,8 @@ class GatewayClient(val config: GatewayConfig) {
                 response.code,
                 message ?: when (response.code) {
                     401 -> "The gateway didn't accept the API key"
+                    in 300..399 -> "The address answered with a redirect, so it isn't the gateway itself. " +
+                        "Enter the gateway's own URL."
                     404 -> "Not found"
                     else -> "The gateway answered ${response.code}"
                 },
@@ -154,6 +160,8 @@ class GatewayClient(val config: GatewayConfig) {
             val client = OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .sslSocketFactory(context.socketFactory, Tls.InspectOnly)
                 .hostnameVerifier { _, _ -> true }
                 .build()
