@@ -270,7 +270,12 @@ private fun BatteryOptimizationRow() {
 @Composable
 private fun MessageRow(m: MessageEntity) {
     Column(Modifier.fillMaxWidth()) {
-        val arrow = if (m.direction == Direction.IN) "← from" else "→ to"
+        val arrow = if (m.direction == Direction.IN) {
+            "← from"
+        } else {
+            // Which API key sent it, e.g. "billing-app → to +63…".
+            listOfNotNull(m.apiKeyName, "→ to").joinToString(" ")
+        }
         val sim = if (m.simSlot >= 0) "SIM ${m.simSlot + 1}" else "SIM ?"
         Text(
             "$arrow ${m.phoneNumber} · $sim · ${m.status.name.lowercase()}",
