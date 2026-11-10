@@ -41,9 +41,10 @@ class GatewayServer(private val app: GatewayApp) {
 
     val isRunning: Boolean get() = server != null
 
-    fun start(port: Int) {
+    /** [host] is "0.0.0.0" to accept connections from the network, or "127.0.0.1" for this phone only. */
+    fun start(port: Int, host: String = "0.0.0.0") {
         if (server != null) return
-        server = embeddedServer(CIO, port = port, host = "0.0.0.0") { module() }
+        server = embeddedServer(CIO, port = port, host = host) { module() }
             .also { it.start(wait = false) }
     }
 

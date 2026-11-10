@@ -1,6 +1,7 @@
 package io.github.jpbaking.smsgateway.data
 
 import android.content.Context
+import io.github.jpbaking.smsgateway.tls.TlsMaterial
 import java.security.SecureRandom
 
 /** Small key/value settings. SharedPreferences is enough here and works on every API level. */
@@ -63,8 +64,58 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_TUNNEL_HOSTNAME, "") ?: ""
         set(value) = prefs.edit().putString(KEY_TUNNEL_HOSTNAME, value.trim()).apply()
 
+    /** Whether the server also listens for HTTPS on [httpsPort]. */
+    var httpsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HTTPS_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_HTTPS_ENABLED, value).apply()
+
+    var httpsPort: Int
+        get() = prefs.getInt(KEY_HTTPS_PORT, DEFAULT_HTTPS_PORT)
+        set(value) = prefs.edit().putInt(KEY_HTTPS_PORT, value).apply()
+
+    /**
+     * With HTTPS on, whether plain HTTP is still reachable from other devices. When false, plain
+     * HTTP only listens on 127.0.0.1, which the Cloudflare Tunnel still uses.
+     */
+    var httpOnLan: Boolean
+        get() = prefs.getBoolean(KEY_HTTP_ON_LAN, false)
+        set(value) = prefs.edit().putBoolean(KEY_HTTP_ON_LAN, value).apply()
+
+    /** Where the HTTPS certificate came from, or null if none is set up. */
+    val tlsSource: TlsSource?
+        get() = TlsSource.entries.firstOrNull { it.name == prefs.getString(KEY_TLS_SOURCE, null) }
+
+    /**
+     * The HTTPS certificate and key, or null if none is saved (or it can't be read any more).
+     * The certificate is public and stored as PEM; the private key is stored encrypted.
+     */
+    fun tlsMaterial(): TlsMaterial? {
+        val cert = prefs.getString(KEY_TLS_CERT, null) ?: return null
+        val key = prefs.getString(KEY_TLS_KEY, null) ?: return null
+        return runCatching { TlsMaterial.fromPem(cert + "\n" + SecretBox.decrypt(key)) }.getOrNull()
+    }
+
+    fun saveTls(material: TlsMaterial, source: TlsSource) {
+        prefs.edit()
+            .putString(KEY_TLS_CERT, material.certificatePem())
+            .putString(KEY_TLS_KEY, SecretBox.encrypt(material.privateKeyPem()))
+            .putString(KEY_TLS_SOURCE, source.name)
+            .apply()
+    }
+
+    fun clearTls() {
+        prefs.edit().remove(KEY_TLS_CERT).remove(KEY_TLS_KEY).remove(KEY_TLS_SOURCE).apply()
+    }
+
     companion object {
         const val DEFAULT_PORT = 8080
+        const val DEFAULT_HTTPS_PORT = 8443
+        private const val KEY_HTTPS_ENABLED = "https_enabled"
+        private const val KEY_HTTPS_PORT = "https_port"
+        private const val KEY_HTTP_ON_LAN = "http_on_lan"
+        private const val KEY_TLS_SOURCE = "tls_source"
+        private const val KEY_TLS_CERT = "tls_cert_pem"
+        private const val KEY_TLS_KEY = "tls_key"
         private const val KEY_TUNNEL_ENABLED = "tunnel_enabled"
         private const val KEY_TUNNEL_MODE = "tunnel_mode"
         private const val KEY_TUNNEL_TOKEN = "tunnel_token"
@@ -92,4 +143,10 @@ enum class TunnelMode {
 
     /** A throwaway trycloudflare.com tunnel. No account needed; the URL changes on every start. */
     QUICK,
+}
+
+enum class TlsSource(val label: String) {
+    PEM("Pasted certificate and key"),
+    PKCS12("Imported PKCS#12 file"),
+    SELF_SIGNED("Self-signed, made on this phone"),
 }

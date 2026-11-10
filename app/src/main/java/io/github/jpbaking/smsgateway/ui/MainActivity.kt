@@ -137,18 +137,23 @@ private fun GatewayScreen(app: GatewayApp) {
                     val running = state is ServerState.Running
                     Text(
                         when (val s = state) {
-                            is ServerState.Running -> "Running on port ${s.port}"
+                            is ServerState.Running -> when {
+                                s.httpsPort == null -> "Running on port ${s.port}"
+                                s.httpLocalOnly -> "Running with HTTPS on port ${s.httpsPort}"
+                                else -> "Running on port ${s.port} (HTTP) and ${s.httpsPort} (HTTPS)"
+                            }
                             is ServerState.Error -> s.message
                             ServerState.Stopped -> "Stopped"
                         },
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     if (running) {
-                        val port = (state as ServerState.Running).port
+                        val s = state as ServerState.Running
                         SelectionContainer {
                             Column {
-                                localIpv4Addresses().forEach {
-                                    Text("http://$it:$port", fontFamily = FontFamily.Monospace)
+                                localIpv4Addresses().forEach { ip ->
+                                    s.httpsPort?.let { Text("https://$ip:$it", fontFamily = FontFamily.Monospace) }
+                                    if (!s.httpLocalOnly) Text("http://$ip:${s.port}", fontFamily = FontFamily.Monospace)
                                 }
                             }
                         }
@@ -156,7 +161,7 @@ private fun GatewayScreen(app: GatewayApp) {
                     OutlinedTextField(
                         value = portText,
                         onValueChange = { portText = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Port") },
+                        label = { Text("HTTP port") },
                         enabled = !running,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -186,6 +191,8 @@ private fun GatewayScreen(app: GatewayApp) {
                     BatteryOptimizationRow()
                 }
             }
+
+            item { HttpsSection(app, running = state is ServerState.Running) }
 
             item { ApiKeysSection(app) }
 
