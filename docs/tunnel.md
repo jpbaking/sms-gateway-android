@@ -22,10 +22,11 @@ need to open ports, set up port forwarding, or have a public IP, so it also work
    commands. You don't need to install anything.
 3. Add a **public hostname**, for example `sms.example.com`, with service type **HTTP** and URL
    `localhost:8080` (use the port shown in the app).
-4. In the app, under **Public access (Cloudflare Tunnel)**, choose **My Cloudflare tunnel**, paste the
-   token, optionally type the hostname so the app can show it, and tap **Save**.
-5. Turn on **Enable tunnel**. The tunnel starts whenever the server is running, and shows
-   **Connected** once it's up.
+4. In the app, open **Settings → Public access** and tap **Edit**. Turn on **Enable tunnel**, choose
+   **My Cloudflare tunnel**, paste the token, optionally type the hostname so the app can show it,
+   and tap **Save**. The app asks you to confirm before it makes the API public.
+5. The tunnel starts whenever the server is running, and shows **Connected** once it's up. The
+   public URL is also listed on the **Status** tab.
 
 ```sh
 curl https://sms.example.com/api/v1/sims -H "X-API-Key: sgw_your_key"
@@ -47,7 +48,7 @@ The tunnel is meant to stay up unattended:
 - **With no network at all**, it waits and reconnects as soon as Wi-Fi or mobile data is back.
 
 When the screen has been off for a while, Android's battery saving can cut the app off from the
-network. Tap **Allow running in background** in the Server section, and see
+network. Tap **Allow running in background** on the **Status** tab, and see
 [Troubleshooting](troubleshooting.md) for phone brands with extra battery savers.
 
 ## Good to know
@@ -57,5 +58,5 @@ network. Tap **Allow running in background** in the Server section, and see
 - **APK size:** cloudflared adds about 20 MB to the APK download, and about 30 MB once installed.
 - **Battery and data:** the tunnel keeps a few connections to Cloudflare open, which uses a little
   more battery and some background data.
-- **Log:** tap **Show log** in the tunnel section to see what cloudflared is doing. It's useful
+- **Log:** tap **Show** on the **Log** card under **Settings → Public access** to see what cloudflared is doing. It's useful
   when a token is rejected or the tunnel won't connect.
