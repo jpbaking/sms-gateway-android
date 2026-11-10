@@ -1,6 +1,7 @@
 package io.github.jpbaking.smsgateway.data
 
 import android.content.Context
+import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.net.ListenMode
 import io.github.jpbaking.smsgateway.tls.TlsMaterial
 import java.security.SecureRandom
@@ -28,10 +29,13 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_RETRY_INTERVAL, DEFAULT_RETRY_INTERVAL_SECONDS)
         set(value) = prefs.edit().putInt(KEY_RETRY_INTERVAL, value).apply()
 
-    /** How long to keep retrying a failed webhook, in hours. 0 means forever. */
+    /**
+     * How long to keep retrying a failed webhook, in hours. Always between 1 and
+     * [MAX_RETRY_MAX_HOURS]: retries never go on forever, see [retryMaxHours].
+     */
     var webhookRetryMaxHours: Int
-        get() = prefs.getInt(KEY_RETRY_MAX_HOURS, 0)
-        set(value) = prefs.edit().putInt(KEY_RETRY_MAX_HOURS, value).apply()
+        get() = retryMaxHours(prefs.getInt(KEY_RETRY_MAX_HOURS, 0))
+        set(value) = prefs.edit().putInt(KEY_RETRY_MAX_HOURS, retryMaxHours(value)).apply()
 
     /** Messages older than this many days are deleted by the daily cleanup. 0 keeps them forever. */
     var messageRetentionDays: Int
@@ -46,6 +50,13 @@ class Settings(context: Context) {
     var tunnelMode: TunnelMode
         get() = TunnelMode.entries.firstOrNull { it.name == prefs.getString(KEY_TUNNEL_MODE, null) } ?: TunnelMode.TOKEN
         set(value) = prefs.edit().putString(KEY_TUNNEL_MODE, value.name).apply()
+
+    /**
+     * Whether the tunnel is switched on and has what it needs to connect. [ListenMode.TUNNEL_ONLY]
+     * is only offered while this is true, because without a tunnel nothing could reach the server.
+     */
+    val tunnelReady: Boolean
+        get() = tunnelReady(tunnelEnabled, tunnelMode, hasToken = !tunnelToken.isNullOrBlank())
 
     /** Token of a tunnel created in the Cloudflare dashboard. Stored encrypted. */
     var tunnelToken: String?
@@ -157,6 +168,32 @@ class Settings(context: Context) {
         private const val KEY_PORT = "port"
         private const val KEY_API_KEY = "api_key"
         const val DEFAULT_RETRY_INTERVAL_SECONDS = 300
+
+        /** Three days: long enough for a server to come back after a weekend outage. */
+        const val DEFAULT_RETRY_MAX_HOURS = 72
+
+        /** Thirty days. */
+        const val MAX_RETRY_MAX_HOURS = 720
+
+        /**
+         * The hours to retry for, from a stored or typed value. Zero used to mean "retry forever"
+         * and was the default; it now means the default, so a delivery never stays queued without
+         * end for a URL that may never answer, or that may belong to someone else by the time it
+         * does.
+         */
+        fun retryMaxHours(stored: Int): Int =
+            if (stored <= 0) DEFAULT_RETRY_MAX_HOURS else stored.coerceAtMost(MAX_RETRY_MAX_HOURS)
+
+        /** See [Settings.tunnelReady]. A quick tunnel needs no token, but only counts where it is offered. */
+        fun tunnelReady(
+            enabled: Boolean,
+            mode: TunnelMode,
+            hasToken: Boolean,
+            quickTunnels: Boolean = BuildConfig.QUICK_TUNNEL_ENABLED,
+        ): Boolean = enabled && when (mode) {
+            TunnelMode.TOKEN -> hasToken
+            TunnelMode.QUICK -> quickTunnels
+        }
         private const val KEY_AUTO_START = "auto_start"
         private const val KEY_RETRY_INTERVAL = "webhook_retry_interval_s"
         private const val KEY_RETRY_MAX_HOURS = "webhook_retry_max_hours"

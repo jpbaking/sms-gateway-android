@@ -64,7 +64,7 @@ Before the gateway looks at an API key, it checks where the connection comes fro
 
 | Mode | Lets in |
 | --- | --- |
-| **Tunnel only** | Nothing but the [Cloudflare Tunnel](tunnel.md). The server listens on the phone itself only, so nothing on Wi-Fi can connect, and HTTPS isn't served |
+| **Tunnel only** | Nothing but the [Cloudflare Tunnel](tunnel.md). The server listens on the phone itself only, so nothing on Wi-Fi can connect, and HTTPS isn't served. Available only while the tunnel is on and has a token |
 | **Local network** (default) | Devices on the same Wi-Fi, Ethernet or VPN, plus the tunnel |
 | **Anywhere** | Everything that can reach the phone. If the phone has a public address, that means the internet |
 

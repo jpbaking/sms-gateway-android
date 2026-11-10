@@ -16,7 +16,7 @@ sends each message. Everything runs on the phone: no cloud service, no subscript
 ## Features
 
 - 📤 **Send SMS** with one HTTP call. Long messages are split and joined automatically
-- 📥 **Receive SMS** as webhooks, signed with HMAC-SHA256 and retried until your server is back
+- 📥 **Receive SMS** as webhooks, signed with HMAC-SHA256 and retried for up to 3 days while your server is down
 - 📡 **Optional live event stream** (Server-Sent Events) with replay after a dropped connection, for client apps
 - 💬 **Companion app** for another phone: the gateway's texts as conversations, with contact names and replies on the right SIM. See [Companion app](docs/companion.md)
 - 📶 **Dual-SIM and multi-SIM**: pick the SIM per message, and see which SIM received each one

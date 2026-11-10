@@ -140,7 +140,8 @@ private fun WebhookRetrySettings(app: GatewayApp) {
         onSave = save@{
             val newInterval = interval.toIntOrNull()?.takeIf { it >= 10 }
                 ?: return@save "The retry interval must be at least 10 seconds."
-            val newMax = maxHours.toIntOrNull() ?: return@save "Enter a number of hours, or 0 for never."
+            val newMax = maxHours.toIntOrNull()?.takeIf { it in 1..Settings.MAX_RETRY_MAX_HOURS }
+                ?: return@save "Give up after 1 to ${Settings.MAX_RETRY_MAX_HOURS} hours (30 days)."
             settings.webhookRetryIntervalSeconds = newInterval
             settings.webhookRetryMaxHours = newMax
             editing = false
@@ -152,10 +153,7 @@ private fun WebhookRetrySettings(app: GatewayApp) {
                 style = MaterialTheme.typography.bodySmall,
             )
             ValueRow("Retry interval", "${settings.webhookRetryIntervalSeconds} s")
-            ValueRow(
-                "Give up after",
-                settings.webhookRetryMaxHours.let { if (it == 0) "Never" else "$it h" },
-            )
+            ValueRow("Give up after", "${settings.webhookRetryMaxHours} h")
         },
         edit = {
             OutlinedTextField(
@@ -168,7 +166,7 @@ private fun WebhookRetrySettings(app: GatewayApp) {
             OutlinedTextField(
                 value = maxHours,
                 onValueChange = { maxHours = digits(it) },
-                label = { Text("Give up after (hours, 0 = never)") },
+                label = { Text("Give up after (hours, 1 to ${Settings.MAX_RETRY_MAX_HOURS})") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )

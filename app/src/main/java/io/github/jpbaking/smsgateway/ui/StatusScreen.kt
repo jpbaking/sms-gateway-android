@@ -214,7 +214,16 @@ private fun Attention(
     val batteryRestricted = remember(refresh) { !power.isIgnoringBatteryOptimizations(context.packageName) }
     val httpsWithoutCert = remember(refresh) { app.settings.httpsEnabled && app.settings.tlsMaterial() == null }
     var quickTunnelNotice by remember { mutableStateOf(app.settings.quickTunnelRemovedNotice) }
-    if (!noKeys && !batteryRestricted && !httpsWithoutCert && keysToReview == 0 && !quickTunnelNotice) return
+    // "Tunnel only" can't be picked without a working tunnel, but an install from before that rule
+    // can still be in this state.
+    val tunnelOnlyWithoutTunnel = remember(refresh) {
+        app.settings.listenMode == ListenMode.TUNNEL_ONLY && !(app.tunnel.isBundled && app.settings.tunnelReady)
+    }
+    if (!noKeys && !batteryRestricted && !httpsWithoutCert && keysToReview == 0 && !quickTunnelNotice &&
+        !tunnelOnlyWithoutTunnel
+    ) {
+        return
+    }
 
     Section("Needs attention") {
         if (quickTunnelNotice) {
@@ -228,6 +237,14 @@ private fun Attention(
                 app.settings.quickTunnelRemovedNotice = false
                 quickTunnelNotice = false
             }) { Text("Dismiss") }
+        }
+        if (tunnelOnlyWithoutTunnel) {
+            Warning(
+                "\"Who can connect\" is set to \"${ListenMode.TUNNEL_ONLY.label}\", but the Cloudflare Tunnel is off " +
+                    "or has no token, so nothing can reach the API.",
+            )
+            TextButton(onClick = { openSettings(SettingsPage.TUNNEL) }) { Text("Set up the tunnel") }
+            TextButton(onClick = { openSettings(SettingsPage.SERVER) }) { Text("Change who can connect") }
         }
         if (keysToReview > 0) {
             Warning(

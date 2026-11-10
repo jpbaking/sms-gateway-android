@@ -45,6 +45,12 @@ If the tunnel is the only way you reach the gateway, set **Settings â†’ Server â
 **Tunnel only**. The server then listens on the phone itself and nothing else, so no device on
 Wi-Fi or mobile data can connect to it directly. See [Who can connect](security.md#who-can-connect).
 
+**Tunnel only** can only be picked while the tunnel is turned on and has a token, because without
+the tunnel nothing could reach the gateway at all. For the same reason, turning the tunnel off or
+removing its token while in **Tunnel only** asks first, then switches **Who can connect** to
+**Local network** and restarts the server. Devices on the same network can then connect again
+(they still need an API key), so cancel if that isn't what you want.
+
 Give the key you use over the tunnel only the [scopes](api.md#scopes) it needs. A public URL is
 the place where a leaked key costs the most.
 

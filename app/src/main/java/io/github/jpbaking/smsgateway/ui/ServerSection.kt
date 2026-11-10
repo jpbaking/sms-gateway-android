@@ -89,6 +89,9 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
     var listenMode by rememberSaveable { mutableStateOf(settings.listenMode) }
     var allowTailscale by rememberSaveable { mutableStateOf(settings.allowTailscale) }
     var pending by remember { mutableStateOf<PendingChange?>(null) }
+    // Read when the form opens or closes: the tunnel is set up on another page, and reading the
+    // token means decrypting it.
+    val tunnelReady = remember(editing) { app.tunnel.isBundled && settings.tunnelReady }
 
     fun reset() {
         listenMode = settings.listenMode
@@ -123,6 +126,12 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
             }
             if (httpsEnabled && newHttpsPort == newPort) return@save "HTTP and HTTPS need different ports."
             if (httpsEnabled && !hasCertificate) return@save "Set up a certificate below before turning HTTPS on."
+            if (listenMode == ListenMode.TUNNEL_ONLY && !tunnelReady) {
+                return@save "\"${ListenMode.TUNNEL_ONLY.label}\" needs the Cloudflare Tunnel. Turn it on and add its " +
+                    "token under Settings → Public access, or pick \"${ListenMode.LAN.label}\"."
+            }
+            // Nothing but the tunnel connects in "Tunnel only", so there are no other devices to allow.
+            val newHttpOnLan = httpOnLan && listenMode != ListenMode.TUNNEL_ONLY
 
             // What changes for clients, for the confirmation.
             val effects = buildList {
@@ -159,7 +168,7 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
                     add("HTTPS moves from port ${settings.httpsPort} to $newHttpsPort.")
                 }
                 val lanBefore = !settings.httpsEnabled || settings.httpOnLan
-                val lanAfter = !httpsEnabled || httpOnLan
+                val lanAfter = !httpsEnabled || newHttpOnLan
                 if (lanBefore && !lanAfter) add("Plain HTTP stops answering other devices (the tunnel still works).")
                 if (!lanBefore && lanAfter) add("Plain HTTP answers other devices again.")
             }
@@ -168,7 +177,7 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
                 settings.autoStart = autoStart
                 settings.httpsEnabled = httpsEnabled
                 settings.httpsPort = newHttpsPort
-                settings.httpOnLan = httpOnLan
+                settings.httpOnLan = newHttpOnLan
                 settings.listenMode = listenMode
                 settings.allowTailscale = allowTailscale
                 if (running && effects.isNotEmpty()) GatewayService.restart(context)
@@ -190,6 +199,14 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
         view = {
             ValueRow("Who can connect", settings.listenMode.label)
             Text(settings.listenMode.detail, style = MaterialTheme.typography.bodySmall)
+            if (settings.listenMode == ListenMode.TUNNEL_ONLY && !tunnelReady) {
+                Text(
+                    "The Cloudflare Tunnel is off or has no token, so nothing can reach the API. Set up the " +
+                        "tunnel under Settings → Public access, or tap Edit and pick \"${ListenMode.LAN.label}\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             if (settings.listenMode == ListenMode.LAN) {
                 ValueRow("Tailscale addresses", if (settings.allowTailscale) "Allowed" else "Refused")
             }
@@ -220,7 +237,22 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
             Text("Who can connect", style = MaterialTheme.typography.titleSmall)
             Column {
                 ListenMode.entries.forEach { m ->
-                    RadioOption(selected = listenMode == m, title = m.label, detail = m.detail) { listenMode = m }
+                    // Without a tunnel, "Tunnel only" would leave nothing able to reach the server.
+                    val available = m != ListenMode.TUNNEL_ONLY || tunnelReady
+                    RadioOption(
+                        selected = listenMode == m,
+                        title = m.label,
+                        detail = if (available) {
+                            m.detail
+                        } else {
+                            "Not available: turn on the Cloudflare Tunnel and add its token under " +
+                                "Settings → Public access first."
+                        },
+                        enabled = available,
+                    ) {
+                        listenMode = m
+                        if (m == ListenMode.TUNNEL_ONLY) httpOnLan = false
+                    }
                 }
             }
             if (listenMode == ListenMode.LAN) {
@@ -240,7 +272,17 @@ private fun ServerOptions(app: GatewayApp, running: Boolean, hasCertificate: Boo
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
-            if (httpsEnabled) {
+            if (listenMode == ListenMode.TUNNEL_ONLY) {
+                // Locked off: in "Tunnel only" no other device connects, over HTTP or anything else.
+                SwitchRow(
+                    "Also allow plain HTTP from other devices",
+                    checked = false,
+                    onCheckedChange = {},
+                    detail = "Off in \"${ListenMode.TUNNEL_ONLY.label}\", where no other device can connect. " +
+                        "To let other devices in, set \"Who can connect\" to at least \"${ListenMode.LAN.label}\".",
+                    enabled = false,
+                )
+            } else if (httpsEnabled) {
                 SwitchRow(
                     "Also allow plain HTTP from other devices",
                     httpOnLan,

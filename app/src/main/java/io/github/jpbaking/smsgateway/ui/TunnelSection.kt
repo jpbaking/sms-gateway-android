@@ -13,12 +13,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
+import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.data.TunnelMode
+import io.github.jpbaking.smsgateway.net.ListenMode
+import io.github.jpbaking.smsgateway.service.GatewayService
+import io.github.jpbaking.smsgateway.service.ServerState
 import io.github.jpbaking.smsgateway.tunnel.TunnelState
 
 /** Settings and status for the built-in Cloudflare Tunnel, which makes the API reachable from the internet. */
@@ -55,6 +60,31 @@ private fun TunnelSettings(app: GatewayApp, port: Int) {
     val hasToken = remember(tokenVersion) { !settings.tunnelToken.isNullOrBlank() }
     var pending by remember { mutableStateOf<PendingChange?>(null) }
     var confirmRemoveToken by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val serverState by GatewayService.state.collectAsStateWithLifecycle()
+
+    /**
+     * In "Tunnel only" the tunnel is the only way in, so taking a working tunnel away would leave
+     * the server reachable by nothing. True when a change that leaves the tunnel [enabledAfter]
+     * and with or without a token ([tokenAfter]) does that; the change then has to be confirmed
+     * and followed by [leaveTunnelOnly].
+     */
+    fun endsTunnelOnly(enabledAfter: Boolean, modeAfter: TunnelMode, tokenAfter: Boolean): Boolean =
+        settings.listenMode == ListenMode.TUNNEL_ONLY &&
+            Settings.tunnelReady(settings.tunnelEnabled, settings.tunnelMode, hasToken) &&
+            !Settings.tunnelReady(enabledAfter, modeAfter, tokenAfter)
+
+    /** Moves "Who can connect" to "Local network". Only after the user agreed to [tunnelOnlyWarning]. */
+    fun leaveTunnelOnly() {
+        settings.listenMode = ListenMode.LAN
+        // The server listens on this phone only in "Tunnel only"; it has to start again to listen
+        // on the network.
+        if (serverState is ServerState.Running) GatewayService.restart(context)
+    }
+    val restartNote = if (serverState is ServerState.Running) " The server restarts to apply this." else ""
+    val tunnelOnlyWarning = "\"Who can connect\" is set to \"${ListenMode.TUNNEL_ONLY.label}\", and without the " +
+        "tunnel nothing could reach the API. It will switch to \"${ListenMode.LAN.label}\": devices on the same " +
+        "Wi-Fi, Ethernet or VPN will be able to connect (they still need an API key).$restartNote"
 
     fun reset() {
         enabled = settings.tunnelEnabled
@@ -76,6 +106,7 @@ private fun TunnelSettings(app: GatewayApp, port: Int) {
             if (enabled && mode == TunnelMode.TOKEN && !hasToken && tokenText.isBlank()) {
                 return@save "Paste the tunnel token from the Cloudflare dashboard."
             }
+            val leaving = endsTunnelOnly(enabled, mode, tokenAfter = hasToken || tokenText.isNotBlank())
             val commit = {
                 if (tokenText.isNotBlank()) {
                     settings.tunnelToken = tokenText
@@ -85,10 +116,18 @@ private fun TunnelSettings(app: GatewayApp, port: Int) {
                 settings.tunnelMode = mode
                 settings.tunnelEnabled = enabled
                 tunnel.reload()
+                if (leaving) leaveTunnelOnly()
                 editing = false
                 reset()
             }
-            if (enabled && !settings.tunnelEnabled) {
+            if (leaving) {
+                pending = PendingChange(
+                    title = "Turn off the tunnel?",
+                    text = tunnelOnlyWarning,
+                    confirmLabel = "Turn off and switch",
+                    commit = commit,
+                )
+            } else if (enabled && !settings.tunnelEnabled) {
                 pending = PendingChange(
                     title = "Make the API public?",
                     text = "Anyone on the internet who has the tunnel's URL can reach the API. Requests still " +
@@ -185,20 +224,23 @@ private fun TunnelSettings(app: GatewayApp, port: Int) {
 
     PendingChangeDialog(pending) { pending = null }
     if (confirmRemoveToken) {
+        val leaving = endsTunnelOnly(settings.tunnelEnabled, settings.tunnelMode, tokenAfter = false)
+        val consequence = if (settings.tunnelEnabled) {
+            "The tunnel disconnects and the API is no longer reachable from the internet until you paste a token again."
+        } else {
+            "You'll need to paste the token again to use your Cloudflare tunnel."
+        }
         ConfirmDialog(
             title = "Remove the tunnel token?",
-            text = if (settings.tunnelEnabled) {
-                "The tunnel disconnects and the API is no longer reachable from the internet until you paste a token again."
-            } else {
-                "You'll need to paste the token again to use your Cloudflare tunnel."
-            },
-            confirmLabel = "Remove",
+            text = if (leaving) "$consequence\n\n$tunnelOnlyWarning" else consequence,
+            confirmLabel = if (leaving) "Remove and switch" else "Remove",
             onDismiss = { confirmRemoveToken = false },
             onConfirm = {
                 confirmRemoveToken = false
                 settings.tunnelToken = null
                 tokenVersion++
                 tunnel.reload()
+                if (leaving) leaveTunnelOnly()
             },
         )
     }
