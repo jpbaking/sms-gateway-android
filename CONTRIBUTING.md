@@ -114,13 +114,22 @@ keytool -genkeypair -v -keystore release.jks -alias smsgateway \
   -keyalg RSA -keysize 4096 -validity 10000
 ```
 
-Add these repository secrets (Settings → Secrets and variables → Actions):
+Add these repository secrets, either in Settings → Secrets and variables → Actions, or with
+[`gh`](https://cli.github.com/). Run this from the folder that contains `release.jks`:
 
 ```sh
-base64 -w0 release.jks | gh secret set SIGNING_KEYSTORE_BASE64   # macOS: base64 -i release.jks | gh secret set …
-gh secret set SIGNING_KEYSTORE_PASSWORD
-gh secret set SIGNING_KEY_ALIAS      # smsgateway
-gh secret set SIGNING_KEY_PASSWORD
+REPO=jpbaking/sms-gateway-android
+
+# macOS
+base64 -i release.jks | gh secret set SIGNING_KEYSTORE_BASE64 -R $REPO
+# Linux
+base64 -w0 release.jks | gh secret set SIGNING_KEYSTORE_BASE64 -R $REPO
+
+gh secret set SIGNING_KEYSTORE_PASSWORD -R $REPO   # the password you gave keytool
+gh secret set SIGNING_KEY_ALIAS -R $REPO           # smsgateway
+gh secret set SIGNING_KEY_PASSWORD -R $REPO        # same password: keytool's PKCS12 keystores use one password
+
+gh secret list -R $REPO                            # should list all four
 ```
 
 ## License
