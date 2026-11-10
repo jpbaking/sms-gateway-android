@@ -111,8 +111,10 @@ cloud relay, can sit next to `GatewayServer` without changing it.
 
 ## Releases (maintainers)
 
-Pushing a version tag builds a signed APK and publishes it on the
-[Releases page](https://github.com/jpbaking/sms-gateway-android/releases):
+Pushing a version tag builds two signed APKs and publishes them on the
+[Releases page](https://github.com/jpbaking/sms-gateway-android/releases): the gateway
+(`sms-gateway-<tag>.apk`) and the companion app (`gateway-sms-companion-<tag>.apk`), with a
+`SHA256SUMS.txt` for both.
 
 | Tag | Published as |
 | --- | --- |
@@ -126,7 +128,8 @@ git push origin v0.1.0-beta.1
 ```
 
 The version name comes from the tag. The version code is the workflow run number, which only ever
-grows, so every release installs over the previous one.
+grows, so every release installs over the previous one. Both apps get the same version and are
+signed with the same key.
 
 ### One-time signing setup
 

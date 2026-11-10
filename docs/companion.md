@@ -31,8 +31,10 @@ runs on.
    live updates, **Follow the event stream**. Leave the other permissions off: the app doesn't use
    them.
 2. For live updates, turn on **Settings → Event stream** on the gateway.
-3. Install the companion APK on the other phone (Android 9 or newer). CI builds it on every pull
-   request as the `gateway-sms-companion-debug-apk` artifact.
+3. Install the companion APK on the other phone (Android 9 or newer). Download the latest
+   `gateway-sms-companion-*.apk` from the
+   [Releases page](https://github.com/jpbaking/sms-gateway-android/releases), next to the gateway's
+   own APK. It has the same version as the gateway release it came with.
 4. Enter the gateway URL and the API key, and tap **Save**. The app checks both before saving.
 
 | Gateway URL | When |
