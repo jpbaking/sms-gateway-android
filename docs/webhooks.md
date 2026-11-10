@@ -3,6 +3,9 @@
 A webhook is a URL on your server that the phone calls whenever something happens: an SMS arrives,
 or a message you sent changes status.
 
+Can't receive calls, for example in an app on another phone? The optional
+[event stream](events.md) pushes the same events over a connection your app opens instead.
+
 ```mermaid
 sequenceDiagram
     participant N as Mobile network

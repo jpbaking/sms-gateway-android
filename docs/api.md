@@ -14,6 +14,7 @@ Base URL: `http://<phone-ip>:<port>`, shown in the app. The default port is `808
 | `POST` | [`/api/v1/messages`](#post-apiv1messages) | Send an SMS |
 | `GET` | [`/api/v1/messages`](#get-apiv1messages) | List messages |
 | `GET` | [`/api/v1/messages/{id}`](#get-apiv1messagesid) | Get one message |
+| `GET` | [`/api/v1/events`](#get-apiv1events) | Live event stream (SSE). Off by default |
 | `GET` | [`/api/v1/webhooks`](#get-apiv1webhooks) | List webhooks |
 | `POST` | [`/api/v1/webhooks`](#post-apiv1webhooks) | Add a webhook |
 | `DELETE` | [`/api/v1/webhooks/{id}`](#delete-apiv1webhooksid) | Remove a webhook |
@@ -120,6 +121,23 @@ stateDiagram-v2
 
 `delivered` depends on your carrier sending delivery reports. Many do, some don't, so a message can
 stay at `sent` for good.
+
+## `GET /api/v1/events`
+
+A [Server-Sent Events](events.md) stream of the same events webhooks get, with replay after a
+dropped connection through `Last-Event-ID`. **Off by default**: it answers `404` until you turn it
+on under **Settings → Event stream**.
+
+| Query or header | Notes |
+| --- | --- |
+| `Last-Event-ID` header, or `lastEventId` query | Replay every event after this id. Without it, only new events |
+| `events` query | Comma-separated event names. Default: all |
+
+```sh
+curl -N $GW/api/v1/events -H "X-API-Key: $KEY" -H "Last-Event-ID: 41"
+```
+
+Format, heartbeats and reconnecting: see [Event stream](events.md).
 
 ## `GET /api/v1/webhooks`
 

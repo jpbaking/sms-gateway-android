@@ -7,6 +7,7 @@ Start with **Getting started**, then read the other pages as you need them.
 | [Getting started](getting-started.md) | Install the APK, set up the phone, send your first SMS |
 | [API reference](api.md) | Every endpoint, with request and response examples |
 | [Webhooks](webhooks.md) | Getting incoming SMS and delivery status pushed to your server, verifying signatures, retries |
+| [Event stream (SSE)](events.md) | Optional live stream of the same events, for client apps that keep a connection open |
 | [Dual-SIM and multi-SIM](multi-sim.md) | Choosing which SIM sends a message, and telling which SIM received one |
 | [HTTPS](https.md) | Serving the API over HTTPS with a self-signed, pasted or PKCS#12 certificate |
 | [Public access (Cloudflare Tunnel)](tunnel.md) | Reaching the API from the internet, over mobile data, without opening ports |

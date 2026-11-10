@@ -74,6 +74,21 @@ data class WebhookEntity(
     fun storedHeaders(): List<StoredHeader> = headers?.let { StoredHeader.decode(it) }.orEmpty()
 }
 
+/**
+ * One event (the same JSON payload a webhook gets), kept so event stream clients can catch up
+ * with `Last-Event-ID` after a dropped connection. [seq] is the SSE event id; AUTOINCREMENT
+ * means it is never reused, even after old rows are deleted.
+ */
+@Entity(tableName = "events", indices = [Index("createdAt")])
+data class EventEntity(
+    @PrimaryKey(autoGenerate = true) val seq: Long = 0,
+    /** Wire name, e.g. `sms:received`. */
+    val event: String,
+    /** The JSON payload, exactly as webhooks receive it. */
+    val payload: String,
+    val createdAt: Long,
+)
+
 /** An extra header sent with every delivery of a webhook. */
 @Serializable
 data class StoredHeader(val key: String, val value: String, val isSecret: Boolean = false) {

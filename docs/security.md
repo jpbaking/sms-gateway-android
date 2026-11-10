@@ -45,6 +45,8 @@ connected to. Treat the phone like any other server:
   webhook, so anyone on the network path could receive its deliveries. Use it for dev/test servers
   with self-signed certificates only.
 - Revoke keys you no longer use.
+- Leave the [event stream](events.md) off unless you use it. When it's on, any valid API key can
+  follow every incoming SMS live, and recent events are kept in the database for replay.
 
 ## Webhook signatures
 
