@@ -1,6 +1,7 @@
 package io.github.jpbaking.smsgateway
 
 import android.app.Application
+import io.github.jpbaking.smsgateway.data.ApiKeys
 import io.github.jpbaking.smsgateway.data.AppDatabase
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.sms.SimRepository
@@ -9,6 +10,7 @@ import io.github.jpbaking.smsgateway.webhook.WebhookDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Holds the app-wide singletons. A DI framework would be overkill for this size of app.
@@ -24,6 +26,8 @@ class GatewayApp : Application() {
         private set
     lateinit var settings: Settings
         private set
+    lateinit var apiKeys: ApiKeys
+        private set
     lateinit var sims: SimRepository
         private set
     lateinit var webhooks: WebhookDispatcher
@@ -36,6 +40,8 @@ class GatewayApp : Application() {
         instance = this
         db = AppDatabase.create(this)
         settings = Settings(this)
+        apiKeys = ApiKeys(db.apiKeys(), settings)
+        scope.launch { apiKeys.migrateLegacyKey() }
         sims = SimRepository(this)
         webhooks = WebhookDispatcher(this, db.webhooks())
         sender = SmsSender(this, db.messages(), webhooks)

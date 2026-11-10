@@ -3,6 +3,9 @@ package io.github.jpbaking.smsgateway.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 enum class Direction { IN, OUT }
 
@@ -45,6 +48,9 @@ data class MessageEntity(
     val error: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    /** For outgoing messages: the API key that sent it. Kept even if the key is later revoked. */
+    val apiKeyId: String? = null,
+    val apiKeyName: String? = null,
 )
 
 @Entity(tableName = "webhooks")
@@ -53,7 +59,42 @@ data class WebhookEntity(
     val url: String,
     /** Comma separated event names, see [io.github.jpbaking.smsgateway.webhook.WebhookEvent]. */
     val events: String,
-    /** Shared secret used to HMAC-sign each payload. */
+    /** Shared secret used to HMAC-sign each payload, encrypted with [SecretBox]. */
     val secret: String,
     val createdAt: Long,
+    /** JSON list of [StoredHeader], or null for none. Secret values are encrypted with [SecretBox]. */
+    val headers: String? = null,
+) {
+    fun storedHeaders(): List<StoredHeader> = headers?.let { StoredHeader.decode(it) }.orEmpty()
+}
+
+/** An extra header sent with every delivery of a webhook. */
+@Serializable
+data class StoredHeader(val key: String, val value: String, val isSecret: Boolean = false) {
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+        private val serializer = ListSerializer(StoredHeader.serializer())
+
+        fun encode(headers: List<StoredHeader>): String = json.encodeToString(serializer, headers)
+        fun decode(stored: String): List<StoredHeader> =
+            runCatching { json.decodeFromString(serializer, stored) }.getOrDefault(emptyList())
+    }
+}
+
+/**
+ * A named API key. Only a SHA-256 hash of the key is stored: the key itself is shown once, when
+ * it's created or regenerated, and can't be recovered afterwards.
+ */
+@Entity(
+    tableName = "api_keys",
+    indices = [Index(value = ["name"], unique = true), Index(value = ["keyHash"], unique = true)],
+)
+data class ApiKeyEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val keyHash: String,
+    /** The first characters of the key, so you can tell keys apart, e.g. `sgw_1a2b3c4d`. */
+    val keyPrefix: String,
+    val createdAt: Long,
+    val lastUsedAt: Long? = null,
 )

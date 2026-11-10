@@ -106,7 +106,6 @@ private fun GatewayScreen(app: GatewayApp) {
     val messages by remember { app.db.messages().observeRecent(50) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val sims = remember(refresh) { app.sims.activeSims() }
-    var apiKey by remember { mutableStateOf(app.settings.apiKey) }
     var portText by remember { mutableStateOf(app.settings.port.toString()) }
     var autoStart by remember { mutableStateOf(app.settings.autoStart) }
 
@@ -186,18 +185,9 @@ private fun GatewayScreen(app: GatewayApp) {
                 }
             }
 
-            item {
-                Section("API key") {
-                    SelectionContainer { Text(apiKey, fontFamily = FontFamily.Monospace) }
-                    Text(
-                        "Send it as the X-API-Key header, or as Authorization: Bearer <key>.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    OutlinedButton(onClick = { apiKey = app.settings.regenerateApiKey() }) {
-                        Text("Generate new key")
-                    }
-                }
-            }
+            item { ApiKeysSection(app) }
+
+            item { WebhookRetrySection(app) }
 
             item {
                 Section("SIM cards") {
@@ -221,6 +211,38 @@ private fun GatewayScreen(app: GatewayApp) {
                 Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall)
             }
         }
+    }
+}
+
+@Composable
+private fun WebhookRetrySection(app: GatewayApp) {
+    var interval by remember { mutableStateOf(app.settings.webhookRetryIntervalSeconds.toString()) }
+    var maxHours by remember { mutableStateOf(app.settings.webhookRetryMaxHours.toString()) }
+    Section("Webhook retries") {
+        Text(
+            "If a webhook fails, it's retried after 10s, 20s, 40s, ... and then at this interval.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = interval,
+            onValueChange = { v ->
+                interval = v.filter(Char::isDigit).take(5)
+                interval.toIntOrNull()?.takeIf { it >= 10 }?.let { app.settings.webhookRetryIntervalSeconds = it }
+            },
+            label = { Text("Retry interval (seconds, min 10)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        OutlinedTextField(
+            value = maxHours,
+            onValueChange = { v ->
+                maxHours = v.filter(Char::isDigit).take(5)
+                app.settings.webhookRetryMaxHours = maxHours.toIntOrNull() ?: 0
+            },
+            label = { Text("Give up after (hours, 0 = never)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
     }
 }
 
@@ -265,7 +287,7 @@ private fun MessageRow(m: MessageEntity) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
