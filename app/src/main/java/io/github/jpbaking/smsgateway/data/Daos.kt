@@ -63,9 +63,39 @@ interface WebhookDao {
     @Insert
     suspend fun insert(webhook: WebhookEntity)
 
+    @Query("SELECT * FROM webhooks WHERE id = :id")
+    suspend fun get(id: String): WebhookEntity?
+
     @Query("SELECT * FROM webhooks ORDER BY createdAt")
     suspend fun all(): List<WebhookEntity>
 
     @Query("DELETE FROM webhooks WHERE id = :id")
+    suspend fun delete(id: String): Int
+}
+
+@Dao
+interface ApiKeyDao {
+    @Insert
+    suspend fun insert(key: ApiKeyEntity)
+
+    @Query("SELECT * FROM api_keys ORDER BY name COLLATE NOCASE")
+    fun observeAll(): Flow<List<ApiKeyEntity>>
+
+    @Query("SELECT * FROM api_keys WHERE keyHash = :hash")
+    suspend fun byHash(hash: String): ApiKeyEntity?
+
+    @Query("SELECT * FROM api_keys WHERE id = :id")
+    suspend fun get(id: String): ApiKeyEntity?
+
+    @Query("SELECT COUNT(*) FROM api_keys WHERE name = :name COLLATE NOCASE")
+    suspend fun countByName(name: String): Int
+
+    @Query("UPDATE api_keys SET keyHash = :hash, keyPrefix = :prefix, lastUsedAt = NULL WHERE id = :id")
+    suspend fun replaceKey(id: String, hash: String, prefix: String): Int
+
+    @Query("UPDATE api_keys SET lastUsedAt = :now WHERE id = :id")
+    suspend fun touch(id: String, now: Long)
+
+    @Query("DELETE FROM api_keys WHERE id = :id")
     suspend fun delete(id: String): Int
 }

@@ -1,21 +1,14 @@
 package io.github.jpbaking.smsgateway.webhook
 
 import android.content.Context
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
 import io.github.jpbaking.smsgateway.data.MessageEntity
 import io.github.jpbaking.smsgateway.data.WebhookDao
 import io.github.jpbaking.smsgateway.server.MessageDto
 import io.github.jpbaking.smsgateway.server.WebhookPayload
 import io.github.jpbaking.smsgateway.server.apiJson
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
-/** Queues one WorkManager job per matching webhook, so deliveries survive restarts and retry. */
+/** Queues one delivery job per matching webhook. Jobs survive restarts; see [WebhookWorker] for retries. */
 class WebhookDispatcher(private val context: Context, private val webhooks: WebhookDao) {
 
     suspend fun dispatch(event: WebhookEvent, message: MessageEntity) {
@@ -33,26 +26,17 @@ class WebhookDispatcher(private val context: Context, private val webhooks: Webh
                 message = MessageDto.from(message),
             ),
         )
-        val workManager = WorkManager.getInstance(context)
+        val now = System.currentTimeMillis()
         for (hook in targets) {
-            val request = OneTimeWorkRequestBuilder<WebhookWorker>()
-                .setInputData(
-                    workDataOf(
-                        WebhookWorker.KEY_URL to hook.url,
-                        WebhookWorker.KEY_SECRET to hook.secret,
-                        WebhookWorker.KEY_EVENT to event.wireName,
-                        WebhookWorker.KEY_BODY to payload,
-                    ),
-                )
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
-                .addTag(TAG)
-                .build()
-            workManager.enqueue(request)
+            WebhookWorker.enqueue(
+                context = context,
+                webhookId = hook.id,
+                event = event.wireName,
+                body = payload,
+                attempt = 0,
+                firstAttemptAt = now,
+                delayMillis = 0,
+            )
         }
-    }
-
-    companion object {
-        const val TAG = "webhook"
     }
 }

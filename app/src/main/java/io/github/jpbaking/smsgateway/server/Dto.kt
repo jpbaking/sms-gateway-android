@@ -1,6 +1,7 @@
 package io.github.jpbaking.smsgateway.server
 
 import io.github.jpbaking.smsgateway.data.MessageEntity
+import io.github.jpbaking.smsgateway.data.SecretBox
 import io.github.jpbaking.smsgateway.data.WebhookEntity
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -36,6 +37,9 @@ data class MessageDto(
     val error: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    /** Outgoing messages only: the API key that sent it. */
+    val apiKeyId: String?,
+    val apiKeyName: String?,
 ) {
     companion object {
         fun from(m: MessageEntity) = MessageDto(
@@ -52,6 +56,8 @@ data class MessageDto(
             error = m.error,
             createdAt = m.createdAt,
             updatedAt = m.updatedAt,
+            apiKeyId = m.apiKeyId,
+            apiKeyName = m.apiKeyName,
         )
     }
 }
@@ -60,22 +66,44 @@ data class MessageDto(
 data class MessageList(val items: List<MessageDto>, val limit: Int, val offset: Int)
 
 @Serializable
+data class HeaderInput(val key: String, val value: String, val isSecret: Boolean = false)
+
+@Serializable
 data class CreateWebhookRequest(
     val url: String,
     /** Defaults to every event. */
     val events: List<String>? = null,
     /** Generated if omitted. */
     val secret: String? = null,
+    /** Extra headers sent with every delivery. */
+    val headers: List<HeaderInput>? = null,
 )
 
 @Serializable
-data class WebhookDto(val id: String, val url: String, val events: List<String>, val secret: String, val createdAt: Long) {
+data class HeaderDto(val key: String, val value: String, val isSecret: Boolean)
+
+@Serializable
+data class WebhookDto(
+    val id: String,
+    val url: String,
+    val events: List<String>,
+    /** The signing secret. Only returned when the webhook is created. */
+    val secret: String?,
+    /** Secret header values are masked. */
+    val headers: List<HeaderDto>,
+    val createdAt: Long,
+) {
     companion object {
-        fun from(w: WebhookEntity) = WebhookDto(
+        const val MASK = "********"
+
+        fun from(w: WebhookEntity, revealSecret: Boolean = false) = WebhookDto(
             id = w.id,
             url = w.url,
             events = w.events.split(',').map { it.trim() }.filter { it.isNotEmpty() },
-            secret = w.secret,
+            secret = if (revealSecret) SecretBox.decrypt(w.secret) else null,
+            headers = w.storedHeaders().map {
+                HeaderDto(it.key, if (it.isSecret) MASK else it.value, it.isSecret)
+            },
             createdAt = w.createdAt,
         )
     }
