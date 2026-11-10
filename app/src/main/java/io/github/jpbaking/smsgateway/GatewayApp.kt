@@ -5,6 +5,7 @@ import io.github.jpbaking.smsgateway.data.ApiKeys
 import io.github.jpbaking.smsgateway.data.AppDatabase
 import io.github.jpbaking.smsgateway.data.Settings
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
+import io.github.jpbaking.smsgateway.net.CellularAddresses
 import io.github.jpbaking.smsgateway.service.Notifier
 import io.github.jpbaking.smsgateway.server.EventStream
 import io.github.jpbaking.smsgateway.sms.SimRepository
@@ -42,6 +43,8 @@ class GatewayApp : Application() {
         private set
     lateinit var tunnel: CloudflaredTunnel
         private set
+    lateinit var cellular: CellularAddresses
+        private set
     lateinit var notifier: Notifier
         private set
 
@@ -59,6 +62,7 @@ class GatewayApp : Application() {
         webhooks = WebhookDispatcher(this, db.webhooks(), events, apiKeys)
         sender = SmsSender(this, db.messages(), webhooks)
         tunnel = CloudflaredTunnel(this, settings)
+        cellular = CellularAddresses(this)
         notifier = Notifier(this)
     }
 

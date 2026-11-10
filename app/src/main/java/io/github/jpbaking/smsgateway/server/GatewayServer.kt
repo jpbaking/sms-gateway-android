@@ -13,6 +13,7 @@ import io.github.jpbaking.smsgateway.data.StoredHeader
 import io.github.jpbaking.smsgateway.data.ShortCodes
 import io.github.jpbaking.smsgateway.data.WebhookEntity
 import io.github.jpbaking.smsgateway.data.WebhookOrigin
+import io.github.jpbaking.smsgateway.net.AccessPolicy
 import io.github.jpbaking.smsgateway.webhook.WebhookEvent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -48,10 +49,13 @@ class GatewayServer(private val app: GatewayApp) {
 
     val isRunning: Boolean get() = server != null
 
-    /** [host] is "0.0.0.0" to accept connections from the network, or "127.0.0.1" for this phone only. */
-    fun start(port: Int, host: String = "0.0.0.0") {
+    /**
+     * [host] is "0.0.0.0" to accept connections from the network, or "127.0.0.1" for this phone
+     * only. [policy] then decides, per request, whether the caller's address is let in.
+     */
+    fun start(port: Int, host: String = "0.0.0.0", policy: AccessPolicy = AccessPolicy.OPEN) {
         if (server != null) return
-        server = embeddedServer(CIO, port = port, host = host) { module() }
+        server = embeddedServer(CIO, port = port, host = host) { module(policy) }
             .also { it.start(wait = false) }
     }
 
@@ -60,7 +64,9 @@ class GatewayServer(private val app: GatewayApp) {
         server = null
     }
 
-    private fun Application.module() {
+    private fun Application.module(policy: AccessPolicy) {
+        // Before anything else, including the API key: is this caller's address let in at all?
+        restrictCallers(policy::allows)
         install(ContentNegotiation) { json(apiJson) }
         install(StatusPages) {
             exception<BadRequestException> { call, cause ->

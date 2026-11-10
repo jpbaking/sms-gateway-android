@@ -37,6 +37,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.data.TunnelMode
+import io.github.jpbaking.smsgateway.net.ListenMode
 import io.github.jpbaking.smsgateway.service.GatewayService
 import io.github.jpbaking.smsgateway.service.ServerState
 import io.github.jpbaking.smsgateway.service.localIpv4Addresses
@@ -163,9 +164,12 @@ private fun AddressesCard(app: GatewayApp, s: ServerState.Running) {
     Section("Reach the API at") {
         SelectionContainer {
             Column {
-                localIpv4Addresses().forEach { ip ->
-                    s.httpsPort?.let { Text("https://$ip:$it", fontFamily = FontFamily.Monospace) }
-                    if (!s.httpLocalOnly) Text("http://$ip:${s.port}", fontFamily = FontFamily.Monospace)
+                // In "Tunnel only" nothing on the network can connect, so there are no addresses to show.
+                if (app.settings.listenMode != ListenMode.TUNNEL_ONLY) {
+                    localIpv4Addresses().forEach { ip ->
+                        s.httpsPort?.let { Text("https://$ip:$it", fontFamily = FontFamily.Monospace) }
+                        if (!s.httpLocalOnly) Text("http://$ip:${s.port}", fontFamily = FontFamily.Monospace)
+                    }
                 }
                 if (tunnelState is TunnelState.Connected) {
                     val url = when (app.settings.tunnelMode) {
@@ -180,6 +184,18 @@ private fun AddressesCard(app: GatewayApp, s: ServerState.Running) {
         if (app.settings.tunnelEnabled && tunnelState !is TunnelState.Connected && tunnelState != TunnelState.Off) {
             Text("Tunnel: ${tunnelStatusText(tunnelState)}", style = MaterialTheme.typography.bodySmall)
         }
+        Text(
+            when (app.settings.listenMode) {
+                ListenMode.TUNNEL_ONLY -> if (app.settings.tunnelEnabled) {
+                    "Only the Cloudflare Tunnel can connect."
+                } else {
+                    "Only the Cloudflare Tunnel can connect, and the tunnel is off, so nothing can reach the API."
+                }
+                ListenMode.LAN -> "Only devices on the local network can connect. Mobile data and public addresses are refused."
+                ListenMode.ANYWHERE -> "Anything that can reach this phone can connect."
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 

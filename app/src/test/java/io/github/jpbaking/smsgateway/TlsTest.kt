@@ -11,10 +11,12 @@ import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.net.Socket
 import java.net.URI
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.util.Base64
+import java.util.concurrent.CopyOnWriteArrayList
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
@@ -132,6 +134,36 @@ class TlsTest {
             backend.close()
         }
         assertNotEquals(0, material.leaf.serialNumber.signum())
+    }
+
+    @Test
+    fun frontendClosesRefusedCallersBeforeTheHandshake() {
+        val material = TlsMaterial.selfSigned(listOf("127.0.0.1"))
+        val asked = CopyOnWriteArrayList<InetAddress?>()
+        val frontend = TlsFrontend(
+            material.sslContext(),
+            port = 0,
+            // Nothing listens here, and nothing should be asked to.
+            backendPort = 1,
+            accept = { remote, local ->
+                asked += remote
+                asked += local
+                false
+            },
+        )
+        frontend.start()
+        try {
+            Socket("127.0.0.1", frontend.localPort).use { socket ->
+                socket.soTimeout = 5_000
+                // Closed without a byte: no certificate, no TLS alert.
+                val first = runCatching { socket.getInputStream().read() }.getOrDefault(-1)
+                assertEquals(-1, first)
+            }
+            assertEquals(2, asked.size)
+            assertTrue(asked.all { it?.isLoopbackAddress == true })
+        } finally {
+            frontend.stop()
+        }
     }
 
     private fun pem(type: String, der: ByteArray): String =

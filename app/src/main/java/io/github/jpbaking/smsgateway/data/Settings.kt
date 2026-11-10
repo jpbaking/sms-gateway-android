@@ -1,6 +1,7 @@
 package io.github.jpbaking.smsgateway.data
 
 import android.content.Context
+import io.github.jpbaking.smsgateway.net.ListenMode
 import io.github.jpbaking.smsgateway.tls.TlsMaterial
 import java.security.SecureRandom
 
@@ -86,6 +87,19 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_HTTP_ON_LAN, false)
         set(value) = prefs.edit().putBoolean(KEY_HTTP_ON_LAN, value).apply()
 
+    /** Who may connect to the server. New installs and upgrades both start on [ListenMode.LAN]. */
+    var listenMode: ListenMode
+        get() = ListenMode.entries.firstOrNull { it.name == prefs.getString(KEY_LISTEN_MODE, null) } ?: ListenMode.LAN
+        set(value) = prefs.edit().putString(KEY_LISTEN_MODE, value.name).apply()
+
+    /**
+     * In [ListenMode.LAN], also let in 100.64.0.0/10, which Tailscale uses. Off by default,
+     * because carriers use the same range behind their NAT.
+     */
+    var allowTailscale: Boolean
+        get() = prefs.getBoolean(KEY_ALLOW_TAILSCALE, false)
+        set(value) = prefs.edit().putBoolean(KEY_ALLOW_TAILSCALE, value).apply()
+
     /** When true, the API can't add or remove webhooks: that's done in the app only. */
     var webhooksPhoneOnly: Boolean
         get() = prefs.getBoolean(KEY_WEBHOOKS_PHONE_ONLY, false)
@@ -120,6 +134,8 @@ class Settings(context: Context) {
     companion object {
         const val DEFAULT_PORT = 8080
         const val DEFAULT_HTTPS_PORT = 8443
+        private const val KEY_LISTEN_MODE = "listen_mode"
+        private const val KEY_ALLOW_TAILSCALE = "allow_tailscale"
         private const val KEY_WEBHOOKS_PHONE_ONLY = "webhooks_phone_only"
         private const val KEY_EVENT_STREAM = "event_stream_enabled"
         private const val KEY_HTTPS_ENABLED = "https_enabled"
