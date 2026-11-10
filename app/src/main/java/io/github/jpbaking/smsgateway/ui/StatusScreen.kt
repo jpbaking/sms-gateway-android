@@ -200,7 +200,7 @@ private fun Attention(app: GatewayApp, noKeys: Boolean, refresh: Int, openSettin
         }
         if (httpsWithoutCert) {
             Warning("HTTPS is on but there's no certificate, so the server can't start.")
-            TextButton(onClick = { openSettings(SettingsPage.HTTPS) }) { Text("Set up HTTPS") }
+            TextButton(onClick = { openSettings(SettingsPage.SERVER) }) { Text("Set up HTTPS") }
         }
         if (batteryRestricted) {
             Warning("Battery optimization may pause the server when the screen is off.")

@@ -1,8 +1,8 @@
 # HTTPS
 
 The gateway can serve its API over HTTPS, so API keys and message text are encrypted on the network.
-In the app, open **Settings → HTTPS**. Under **Certificate**, tap **Set up** and pick one of three ways
-to get a certificate. Then tap **Edit** on the **HTTPS** card, turn on **Serve HTTPS**, pick a port
+In the app, open **Settings → Server**. Under **Certificate**, tap **Set up** and pick one of three ways
+to get a certificate. Then tap **Edit** on the **Server** card, turn on **Serve HTTPS**, pick a port
 (default `8443`), and tap **Save**:
 
 | Option | Use it when |

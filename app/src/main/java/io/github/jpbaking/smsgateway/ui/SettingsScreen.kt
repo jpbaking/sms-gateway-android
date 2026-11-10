@@ -36,7 +36,6 @@ import io.github.jpbaking.smsgateway.BuildConfig
 import io.github.jpbaking.smsgateway.GatewayApp
 import io.github.jpbaking.smsgateway.R
 import io.github.jpbaking.smsgateway.data.Settings
-import io.github.jpbaking.smsgateway.data.TunnelMode
 import io.github.jpbaking.smsgateway.data.WebhookEntity
 import io.github.jpbaking.smsgateway.maintenance.CleanupWorker
 import io.github.jpbaking.smsgateway.service.GatewayService
@@ -47,8 +46,7 @@ import java.text.DateFormat
 import java.util.Date
 
 internal enum class SettingsPage(val title: String, val summary: String) {
-    SERVER("Server", "HTTP port, start on boot"),
-    HTTPS("HTTPS", "Encryption on the network, certificate"),
+    SERVER("Server", "Ports, start on boot, HTTPS and its certificate"),
     TUNNEL("Public access", "Cloudflare Tunnel"),
     API_KEYS("API keys", "Who may use the API"),
     WEBHOOKS("Webhooks", "Retries, registered webhooks"),
@@ -86,8 +84,7 @@ internal fun SettingsPageContent(app: GatewayApp, page: SettingsPage, padding: P
     val running = state is ServerState.Running
     ScreenColumn(padding) {
         when (page) {
-            SettingsPage.SERVER -> ServerSettings(app, running)
-            SettingsPage.HTTPS -> HttpsSection(app, running)
+            SettingsPage.SERVER -> ServerSection(app, running)
             SettingsPage.TUNNEL -> TunnelSection(app, (state as? ServerState.Running)?.port ?: app.settings.port)
             SettingsPage.API_KEYS -> ApiKeysSection(app)
             SettingsPage.WEBHOOKS -> {
@@ -120,83 +117,6 @@ internal fun PendingChangeDialog(pending: PendingChange?, onDismiss: () -> Unit)
             pending.commit()
         },
     )
-}
-
-@Composable
-private fun ServerSettings(app: GatewayApp, running: Boolean) {
-    val context = LocalContext.current
-    val settings = app.settings
-    var editing by rememberSaveable { mutableStateOf(false) }
-    var port by rememberSaveable { mutableStateOf(settings.port.toString()) }
-    var autoStart by rememberSaveable { mutableStateOf(settings.autoStart) }
-    var pending by remember { mutableStateOf<PendingChange?>(null) }
-
-    fun reset() {
-        port = settings.port.toString()
-        autoStart = settings.autoStart
-    }
-
-    val dirty = port != settings.port.toString() || autoStart != settings.autoStart
-
-    EditableSection(
-        title = "Server",
-        editing = editing,
-        onEditingChange = { editing = it },
-        dirty = dirty,
-        onDiscard = ::reset,
-        onSave = save@{
-            val newPort = port.toIntOrNull()?.takeIf { it in 1024..65535 }
-                ?: return@save "The port must be between 1024 and 65535."
-            if (settings.httpsEnabled && newPort == settings.httpsPort) {
-                return@save "That's the HTTPS port. Pick a different one."
-            }
-            val portChanged = newPort != settings.port
-            val commit = {
-                settings.port = newPort
-                settings.autoStart = autoStart
-                if (running && portChanged) GatewayService.restart(context)
-                editing = false
-            }
-            if (running && portChanged) {
-                val tunnelNote = if (settings.tunnelEnabled && settings.tunnelMode == TunnelMode.TOKEN) {
-                    " In the Cloudflare dashboard, point your tunnel at http://localhost:$newPort."
-                } else {
-                    ""
-                }
-                pending = PendingChange(
-                    title = "Restart the server?",
-                    text = "The server restarts on port $newPort. Apps using port ${settings.port} " +
-                        "need updating.$tunnelNote",
-                    confirmLabel = "Restart",
-                    commit = commit,
-                )
-            } else {
-                commit()
-            }
-            null
-        },
-        view = {
-            ValueRow("HTTP port", settings.port.toString(), monospace = true)
-            ValueRow("Start on boot", onOff(settings.autoStart))
-        },
-        edit = {
-            OutlinedTextField(
-                value = port,
-                onValueChange = { port = digits(it) },
-                label = { Text("HTTP port") },
-                supportingText = { Text("1024 to 65535") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-            SwitchRow(
-                "Start on boot",
-                autoStart,
-                { autoStart = it },
-                detail = "Brings the server back after a reboot or app update.",
-            )
-        },
-    )
-    PendingChangeDialog(pending) { pending = null }
 }
 
 @Composable
