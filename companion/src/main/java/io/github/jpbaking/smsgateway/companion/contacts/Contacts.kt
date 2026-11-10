@@ -100,7 +100,7 @@ class Contacts(private val context: Context) {
     /** Looks up any of [numbers] not looked up yet. */
     suspend fun resolve(numbers: Collection<String>) {
         if (!_permitted.value) return
-        val todo = numbers.filter { it !in cache && it !in missing }
+        val todo = numbers.filter { !cache.containsKey(it) && it !in missing }
         if (todo.isEmpty()) return
         val found = withContext(Dispatchers.IO) {
             todo.mapNotNull { number -> lookup(number)?.let { number to it } ?: run { missing += number; null } }
