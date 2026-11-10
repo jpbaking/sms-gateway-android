@@ -131,6 +131,7 @@ stay at `sent` for good.
     "events": ["sms:received", "sms:sent", "sms:delivered", "sms:failed"],
     "secret": null,
     "headers": [{"key": "Authorization", "value": "********", "isSecret": true}],
+    "insecure": false,
     "createdAt": 1762740000000
   }
 ]
@@ -146,6 +147,7 @@ The signing `secret` is only returned when the webhook is created. Secret header
 | `events` | string[] | no | Any of `sms:received`, `sms:sent`, `sms:delivered`, `sms:failed`. Default: all |
 | `secret` | string | no | Signing secret. Generated if omitted |
 | `headers` | object[] | no | `{"key", "value", "isSecret"}`, sent with every delivery. `isSecret` defaults to `false` |
+| `insecure` | boolean | no | Skip TLS certificate and host name checks, for `https://` servers with self-signed or dev/test certificates. Default `false` |
 
 ```sh
 curl -X POST $GW/api/v1/webhooks -H "X-API-Key: $KEY" -H "Content-Type: application/json" -d '{
@@ -160,6 +162,11 @@ shown again.
 
 Up to 20 headers. These names are reserved and rejected: `Content-Type`, `Content-Length`, `Host`,
 `Connection`, `Transfer-Encoding` and anything starting with `X-Gateway-`.
+
+`"insecure": true` accepts any certificate from that webhook's server, so deliveries still work
+when it uses a self-signed, expired or wrong-host certificate. The traffic is still encrypted, but
+anyone on the network path could pretend to be your server. Use it for dev and test only. It only
+affects that one webhook, and has no effect on `http://` URLs.
 
 ## `DELETE /api/v1/webhooks/{id}`
 

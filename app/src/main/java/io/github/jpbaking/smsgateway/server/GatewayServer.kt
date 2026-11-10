@@ -165,6 +165,7 @@ class GatewayServer(private val app: GatewayApp) {
                                 )
                             },
                         ),
+                        insecure = req.insecure,
                     )
                     app.db.webhooks().insert(hook)
                     call.respond(HttpStatusCode.Created, WebhookDto.from(hook, revealSecret = true))

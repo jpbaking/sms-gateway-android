@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.net.ssl.HttpsURLConnection
 import java.util.concurrent.TimeUnit
 
 /**
@@ -44,7 +45,7 @@ class WebhookWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val attempt = inputData.getInt(KEY_ATTEMPT, 0)
         val firstAttemptAt = inputData.getLong(KEY_FIRST_ATTEMPT_AT, System.currentTimeMillis())
 
-        val code = post(url, secret, extraHeaders, event, body)
+        val code = post(url, hook.insecure, secret, extraHeaders, event, body)
         if (code in 200..299) return@withContext Result.success()
         if (code in 400..499 && code != 408 && code != 429) {
             Log.w(TAG, "Webhook $url rejected with $code, giving up")
@@ -62,10 +63,11 @@ class WebhookWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     }
 
     /** Returns the HTTP status code, or -1 if the request didn't complete. */
-    private fun post(url: String, secret: String, extraHeaders: List<Pair<String, String>>, event: String, body: String): Int {
+    private fun post(url: String, insecure: Boolean, secret: String, extraHeaders: List<Pair<String, String>>, event: String, body: String): Int {
         val timestamp = System.currentTimeMillis() / 1000
         return try {
             val conn = URL(url).openConnection() as HttpURLConnection
+            if (insecure && conn is HttpsURLConnection) InsecureTls.apply(conn)
             try {
                 conn.requestMethod = "POST"
                 conn.connectTimeout = 15_000

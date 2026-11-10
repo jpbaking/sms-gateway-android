@@ -77,6 +77,8 @@ data class CreateWebhookRequest(
     val secret: String? = null,
     /** Extra headers sent with every delivery. */
     val headers: List<HeaderInput>? = null,
+    /** Skip TLS certificate checks for this webhook (self-signed dev/test servers). */
+    val insecure: Boolean = false,
 )
 
 @Serializable
@@ -91,6 +93,8 @@ data class WebhookDto(
     val secret: String?,
     /** Secret header values are masked. */
     val headers: List<HeaderDto>,
+    /** TLS certificate checks are skipped for this webhook. */
+    val insecure: Boolean,
     val createdAt: Long,
 ) {
     companion object {
@@ -104,6 +108,7 @@ data class WebhookDto(
             headers = w.storedHeaders().map {
                 HeaderDto(it.key, if (it.isSecret) MASK else it.value, it.isSecret)
             },
+            insecure = w.insecure,
             createdAt = w.createdAt,
         )
     }

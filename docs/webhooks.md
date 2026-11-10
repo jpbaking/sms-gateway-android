@@ -28,6 +28,8 @@ curl -X POST $GW/api/v1/webhooks -H "X-API-Key: $KEY" -H "Content-Type: applicat
 ```
 
 Keep the `secret` from the response. You need it to [verify signatures](#verify-the-signature).
+Is your server on a self-signed or dev/test certificate? Add `"insecure": true` to skip certificate
+checks for that webhook only (see [Security](security.md#the-network)).
 For all options, including extra headers, see the [API reference](api.md#post-apiv1webhooks).
 
 ## Events
