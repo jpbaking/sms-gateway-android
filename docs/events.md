@@ -37,14 +37,19 @@ curl -N $GW/api/v1/events -H "X-API-Key: $KEY"
 
 | Query or header | Notes |
 | --- | --- |
-| `X-API-Key` or `Authorization: Bearer` | Required, like every `/api/v1` endpoint |
+| `X-API-Key` or `Authorization: Bearer` | Required. The key needs the `events` [scope](api.md#scopes) |
 | `Last-Event-ID` header | Id of the last event you handled. You get every event after it, then live events. Without it, only new events are sent |
 | `lastEventId` query | Same as the header, for clients that can't set it on the first connection |
 | `events` query | Comma-separated event names to receive, e.g. `events=sms:received`. Default: all |
 
 The response is `200` with `Content-Type: text/event-stream` and stays open. Errors are answered
-before the stream starts: `401` for a missing or wrong key, `400` for an unknown event name or a
-`Last-Event-ID` that isn't a number, and `404` while the stream is off.
+before the stream starts: `401` for a missing or wrong key, `403` for a key without the `events`
+scope, `400` for an unknown event name or a `Last-Event-ID` that isn't a number, and `404` while
+the stream is off.
+
+A stream belongs to the key that opened it. The gateway closes it when that key is switched off,
+regenerated or revoked, or loses the `events` scope. A client that reconnects then gets `401` or
+`403`, so treat those as "stop and tell the user", not as a reason to keep retrying.
 
 ## What you receive
 
@@ -103,7 +108,8 @@ it, does this:
    reply is the queued message; its status changes arrive on the stream.
 
 Give the client app **its own API key** (for example `my-phone`), so you can revoke it alone and
-see which messages it sent.
+see which messages it sent. For the steps above it needs the `send`, `read` and `events` scopes,
+and nothing else.
 
 On Android, keep the connection in a foreground service if you want it while the app is in the
 background, since the system closes idle network connections of background apps. OkHttp's

@@ -27,6 +27,11 @@ clients can't do HTTPS yet.
 | HTTPS on (default) | `https://PHONE_IP:8443` only | works |
 | HTTPS on, plain HTTP allowed | both | works |
 
+With **Who can connect** set to **Tunnel only**, HTTPS isn't served at all: no other device can
+connect, and Cloudflare already encrypts the tunnel. In **Local network** mode the HTTPS port
+follows the same rules as plain HTTP, and refuses other callers before the TLS handshake. See
+[Who can connect](security.md#who-can-connect).
+
 ## Self-signed certificate
 
 The app makes an ECDSA P-256 key and a certificate valid for 825 days, for the host names and IP

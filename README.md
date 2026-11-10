@@ -21,7 +21,8 @@ sends each message. Everything runs on the phone: no cloud service, no subscript
 - 💬 **Companion app** for another phone: the gateway's texts as conversations, with contact names and replies on the right SIM. See [Companion app](docs/companion.md)
 - 📶 **Dual-SIM and multi-SIM**: pick the SIM per message, and see which SIM received each one
 - ✅ **Delivery tracking**: `queued` → `sent` → `delivered` (or `failed`, with the reason)
-- 🔑 **Named API keys**: one per app, shown once, stored hashed, revocable, and recorded on every message
+- 🔑 **Named API keys**: one per app, each with only the permissions it needs, shown once, stored hashed, and recorded on every message
+- 🛡️ **Local network only by default**: connections over mobile data or from public addresses are refused before the key is even checked
 - 🔒 **Secrets encrypted** with the Android Keystore. Extra webhook headers (e.g. `Authorization`) are supported
 - 💾 **Local database** with a retention policy and automatic compaction
 - 🔋 Runs as a foreground service, survives reboots, works on **Android 9 and newer**
@@ -86,7 +87,9 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
 - **Distributed as an APK**, not on the Play Store. Google limits SMS permissions on Play to default
   SMS apps.
 - **The phone must be reachable** from your systems: the same network, a VPN such as Tailscale, or
-  the built-in [Cloudflare Tunnel](docs/tunnel.md) for a public HTTPS URL.
+  the built-in [Cloudflare Tunnel](docs/tunnel.md) for a public HTTPS URL. By default it only
+  accepts connections from the local network; see
+  [Who can connect](docs/security.md#who-can-connect).
 - The API is plain HTTP on your network unless you turn on [HTTPS](docs/https.md). Read
   [Security](docs/security.md) before exposing it.
 - SMS costs whatever your carrier charges. Check your plan before sending in bulk.

@@ -50,9 +50,15 @@ restart, open **Settings → Server**, tap **Edit**, turn on **Start on boot**, 
 Check it from your computer:
 
 ```sh
-curl http://192.168.1.50:8080/health
-# {"status":"ok","version":"0.1.0-beta.1"}
+curl -i http://192.168.1.50:8080/health
+# HTTP/1.1 200 OK
 ```
+
+`200` means the server is up. It says nothing else until you send an API key.
+
+The computer has to be on the same network as the phone. By default the gateway refuses connections
+from anywhere else, and anything arriving over mobile data. See
+[Who can connect](security.md#who-can-connect).
 
 ## 5. Create an API key
 
@@ -60,7 +66,18 @@ In **Settings → API keys**, tap **New key** and give it a name that says who w
 `billing-app`. Copy the key right away: **it's shown only once**. If you lose it, tap
 **Regenerate** to get a new one.
 
+A new key can **send messages** and **read all messages**. The other permissions (following the
+event stream, managing webhooks, sending to short codes) are off until you tick them, here or later
+under **Permissions**. Give each key only what it needs. See [Scopes](api.md#scopes).
+
 Make one key per app or person. Every message you send records the name of the key that sent it.
+
+With the key, `/health` also shows the version, which is a quick way to test it:
+
+```sh
+curl -H "X-API-Key: sgw_your_key_here" http://192.168.1.50:8080/health
+# {"status":"ok","version":"0.1.0-beta.1"}
+```
 
 ## 6. Send your first SMS
 
