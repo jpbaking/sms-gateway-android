@@ -10,6 +10,10 @@ plugins {
 // Without them, release builds fall back to the debug key so local `assembleRelease` still works.
 val signingKeystore: String? = System.getenv("SIGNING_KEYSTORE_PATH")
 
+// In-app Help opens the docs on GitHub. A release build (VERSION_NAME comes from its tag) opens
+// them at that tag, so they describe the installed version. Other builds open main.
+val docsRef: String = System.getenv("VERSION_NAME")?.let { "v" + it.removePrefix("v") } ?: "main"
+
 android {
     namespace = "io.github.jpbaking.smsgateway"
     compileSdk = 36
@@ -25,6 +29,7 @@ android {
         // easy to put the gateway on the internet without meaning to. While this is false the
         // option is hidden and the tunnel refuses to start in that mode.
         buildConfigField("boolean", "QUICK_TUNNEL_ENABLED", "false")
+        buildConfigField("String", "DOCS_REF", "\"$docsRef\"")
     }
 
     signingConfigs {
@@ -42,6 +47,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "DOCS_REF", "\"main\"")
         }
         release {
             isMinifyEnabled = false

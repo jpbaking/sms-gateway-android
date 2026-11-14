@@ -54,7 +54,7 @@ Without a key it answers `200` with an empty body: enough to tell that the serve
 more. With a valid key (any scopes) it adds the details:
 
 ```json
-{"status": "ok", "version": "0.1.0-beta.1"}
+{"status": "ok", "version": "1.0.0"}
 ```
 
 With a key that is wrong or switched off it answers `401`, so you can also use it to test a key.

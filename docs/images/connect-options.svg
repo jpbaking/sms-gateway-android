@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-labelledby="t d">
+  <title id="t">Three ways to reach the gateway</title>
+  <desc id="d">Same Wi-Fi or LAN: simplest, at a local address. VPN such as Tailscale or WireGuard: private access from anywhere. Cloudflare Tunnel: a public HTTPS address that works on mobile data without port forwarding.</desc>
+  <defs>
+    <marker id="hG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5CE07A"/></marker>
+    <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6EE8F0"/></marker>
+    <g id="laptop" fill="none" stroke="#A9B8D6" stroke-width="2.5" stroke-linejoin="round">
+      <rect x="-34" y="-30" width="68" height="44" rx="5" fill="#071A34"/>
+      <path d="M-44,20 L44,20 L38,26 L-38,26 Z" fill="#132A4A"/>
+      <path d="M-20,-14 l8,6 -8,6 M-4,-2 h16" stroke="#5CE07A" stroke-width="2"/>
+    </g>
+    <g id="phone" fill="none" stroke-linejoin="round">
+      <rect x="-19" y="-34" width="38" height="68" rx="8" fill="#071A34" stroke="#5CE07A" stroke-width="2.5"/>
+      <rect x="-11" y="-20" width="22" height="9" rx="3" fill="#5CE07A"/>
+      <rect x="-11" y="-6" width="16" height="9" rx="3" fill="#A45CF0"/>
+      <rect x="-7" y="26" width="14" height="3" rx="1.5" fill="#5479A8"/>
+    </g>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #E3ECFF; }
+    .title { font-size: 19px; font-weight: 700; }
+    .sub { font-size: 14px; fill: #A9B8D6; }
+    .tag { font-size: 12px; fill: #A9B8D6; }
+    .li { font-size: 14px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; fill: #5CE07A; }
+    .panel { fill: #071A34; stroke: #132A4A; stroke-width: 2; }
+    .pill { fill: #010C27; stroke: #0E5A2C; stroke-width: 1.5; }
+    .num { font-size: 15px; font-weight: 700; fill: #010C27; }
+  </style>
+
+  <rect x="0" y="0" width="1200" height="500" rx="24" fill="#010C27"/>
+
+  <!-- 1. Same Wi-Fi -->
+  <g transform="translate(30,30)">
+    <rect class="panel" width="360" height="440" rx="18"/>
+    <circle cx="36" cy="40" r="14" fill="#5CE07A"/><text class="num" x="36" y="45.5" text-anchor="middle">1</text>
+    <text class="title" x="60" y="47">Same Wi-Fi or LAN</text>
+    <text class="sub" x="24" y="80">The simplest. Traffic stays at home.</text>
+
+    <g stroke="#5479A8" stroke-width="2" stroke-dasharray="5 6" fill="none">
+      <path d="M160,170 L90,205"/><path d="M200,170 L270,200"/>
+    </g>
+    <g fill="none" stroke="#6EE8F0" stroke-width="2.5" stroke-linecap="round">
+      <rect x="148" y="150" width="64" height="22" rx="6" fill="#0B4F57"/>
+      <path d="M160,150 v-14 M200,150 v-14"/>
+      <path d="M166,124 a20,20 0 0,1 28,0" opacity="0.9"/>
+      <path d="M157,114 a33,33 0 0,1 46,0" opacity="0.6"/>
+    </g>
+    <circle cx="160" cy="161" r="2.5" fill="#6EE8F0"/><circle cx="170" cy="161" r="2.5" fill="#6EE8F0"/>
+    <text class="tag" x="180" y="196" text-anchor="middle">router</text>
+    <use href="#laptop" x="76" y="222"/>
+    <use href="#phone" x="288" y="218"/>
+    <text class="tag" x="76" y="268" text-anchor="middle">your computer</text>
+    <text class="tag" x="288" y="268" text-anchor="middle">gateway</text>
+
+    <rect class="pill" x="24" y="290" width="312" height="36" rx="10"/>
+    <text class="mono" x="180" y="313" text-anchor="middle">http://192.168.1.50:8080</text>
+
+    <g class="li">
+      <circle cx="30" cy="358" r="3" fill="#5CE07A"/><text x="42" y="363">Works with the default settings</text>
+      <circle cx="30" cy="386" r="3" fill="#5CE07A"/><text x="42" y="391">Who can connect: <tspan font-weight="700">Local network</tspan></text>
+      <circle cx="30" cy="414" r="3" fill="#5CE07A"/><text x="42" y="419">Turn on HTTPS on shared Wi-Fi</text>
+    </g>
+  </g>
+
+  <!-- 2. VPN -->
+  <g transform="translate(420,30)">
+    <rect class="panel" width="360" height="440" rx="18"/>
+    <circle cx="36" cy="40" r="14" fill="#A45CF0"/><text class="num" x="36" y="45.5" text-anchor="middle">2</text>
+    <text class="title" x="60" y="47">VPN (Tailscale, WireGuard)</text>
+    <text class="sub" x="24" y="80">Private access from anywhere.</text>
+
+    <rect x="104" y="196" width="152" height="30" rx="15" fill="#3B1B66" stroke="#A45CF0" stroke-width="2"/>
+    <g fill="none" stroke="#E3ECFF" stroke-width="2.2" stroke-linejoin="round">
+      <rect x="170" y="207" width="20" height="14" rx="3" fill="#A45CF0" stroke="#A45CF0"/>
+      <path d="M174,207 v-5 a6,6 0 0,1 12,0 v5"/>
+    </g>
+    <text class="tag" x="180" y="182" text-anchor="middle">encrypted, over any network</text>
+    <use href="#laptop" x="66" y="210"/>
+    <use href="#phone" x="294" y="210"/>
+    <text class="tag" x="66" y="268" text-anchor="middle">anywhere</text>
+    <text class="tag" x="294" y="268" text-anchor="middle">gateway</text>
+
+    <rect class="pill" x="24" y="290" width="312" height="36" rx="10" style="stroke:#3B1B66"/>
+    <text class="mono" x="180" y="313" text-anchor="middle" style="fill:#C9A2F7">http://100.101.102.103:8080</text>
+
+    <g class="li">
+      <circle cx="30" cy="358" r="3" fill="#A45CF0"/><text x="42" y="363">The VPN app runs on both devices</text>
+      <circle cx="30" cy="386" r="3" fill="#A45CF0"/><text x="42" y="391">Tailscale: turn on <tspan font-weight="700">Also allow</tspan></text>
+      <text x="42" y="411"><tspan font-weight="700">Tailscale addresses</tspan> on the gateway</text>
+    </g>
+  </g>
+
+  <!-- 3. Cloudflare Tunnel -->
+  <g transform="translate(810,30)">
+    <rect class="panel" width="360" height="440" rx="18"/>
+    <circle cx="36" cy="40" r="14" fill="#6EE8F0"/><text class="num" x="36" y="45.5" text-anchor="middle">3</text>
+    <text class="title" x="60" y="47">Cloudflare Tunnel</text>
+    <text class="sub" x="24" y="80">A public HTTPS address.</text>
+
+    <path d="M140,160 a22,22 0 0,1 30,-28 a30,30 0 0,1 54,8 a20,20 0 0,1 6,40 h-88 a20,20 0 0,1 -2,-20 z" fill="#0B4F57" stroke="#6EE8F0" stroke-width="2.5" stroke-linejoin="round"/>
+    <text class="tag" x="186" y="166" text-anchor="middle" style="fill:#C8FAFF">Cloudflare</text>
+    <line x1="88" y1="196" x2="146" y2="174" stroke="#6EE8F0" stroke-width="2.5" marker-end="url(#hC)"/>
+    <line x1="280" y1="192" x2="228" y2="176" stroke="#5CE07A" stroke-width="2.5" marker-end="url(#hG)"/>
+    <text class="tag" x="96" y="168" text-anchor="middle">HTTPS</text>
+    <text class="tag" x="192" y="208" text-anchor="middle" style="fill:#5CE07A">the phone connects out</text>
+    <use href="#laptop" x="66" y="222"/>
+    <use href="#phone" x="294" y="218"/>
+    <text class="tag" x="66" y="268" text-anchor="middle">anyone with a key</text>
+    <text class="tag" x="294" y="268" text-anchor="middle">gateway</text>
+
+    <rect class="pill" x="24" y="290" width="312" height="36" rx="10" style="stroke:#0B4F57"/>
+    <text class="mono" x="180" y="313" text-anchor="middle" style="fill:#6EE8F0">https://sms.example.com</text>
+
+    <g class="li">
+      <circle cx="30" cy="358" r="3" fill="#6EE8F0"/><text x="42" y="363">Works on mobile data</text>
+      <circle cx="30" cy="386" r="3" fill="#6EE8F0"/><text x="42" y="391">No port forwarding, no public IP</text>
+      <circle cx="30" cy="414" r="3" fill="#6EE8F0"/><text x="42" y="419">Needs a Cloudflare account and domain</text>
+    </g>
+  </g>
+</svg>

@@ -27,6 +27,23 @@ clients can't do HTTPS yet.
 | HTTPS on (default) | `https://PHONE_IP:8443` only | works |
 | HTTPS on, plain HTTP allowed | both | works |
 
+```mermaid
+flowchart LR
+    dev[Other devices]
+    subgraph phone[Gateway phone]
+        https[HTTPS<br/>port 8443]
+        http[Plain HTTP<br/>port 8080]
+        cfd[cloudflared]
+    end
+    dev -- "https://PHONE_IP:8443" --> https
+    https -- "on the phone itself" --> http
+    cfd -- "on the phone itself" --> http
+    dev -. "http://PHONE_IP:8080, only with<br/>Also allow plain HTTP from other devices" .-> http
+```
+
+Plain HTTP keeps running with HTTPS on, because the HTTPS port and the tunnel hand requests to it on
+the phone itself.
+
 With **Who can connect** set to **Tunnel only**, HTTPS isn't served at all: no other device can
 connect, and Cloudflare already encrypts the tunnel. **Also allow plain HTTP from other devices**
 is locked off there too; to let other devices in, set **Who can connect** to at least
