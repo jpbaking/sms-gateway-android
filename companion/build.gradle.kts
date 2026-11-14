@@ -9,6 +9,10 @@ plugins {
 // without them release builds fall back to the debug key.
 val signingKeystore: String? = System.getenv("SIGNING_KEYSTORE_PATH")
 
+// In-app Help opens the docs on GitHub. A release build (VERSION_NAME comes from its tag) opens
+// them at that tag, so they describe the installed version. Other builds open main.
+val docsRef: String = System.getenv("VERSION_NAME")?.let { "v" + it.removePrefix("v") } ?: "main"
+
 android {
     namespace = "io.github.jpbaking.smsgateway.companion"
     compileSdk = 36
@@ -19,6 +23,7 @@ android {
         targetSdk = 35
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "0.1.0-dev"
+        buildConfigField("String", "DOCS_REF", "\"$docsRef\"")
     }
 
     signingConfigs {
@@ -36,6 +41,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "DOCS_REF", "\"main\"")
         }
         release {
             isMinifyEnabled = false

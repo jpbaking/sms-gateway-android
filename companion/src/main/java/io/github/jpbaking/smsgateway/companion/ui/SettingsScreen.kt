@@ -32,6 +32,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -130,6 +131,7 @@ fun SettingsScreen(app: CompanionApp, back: () -> Unit) {
                     }
                 },
                 title = { Text("Gateway") },
+                actions = { HelpButton("companion.md#set-up") },
             )
         },
     ) { padding ->
@@ -218,6 +220,11 @@ fun SettingsScreen(app: CompanionApp, back: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val context = LocalContext.current
+                TextButton(onClick = { openHelp(context, "companion.md") }) { Text("Help") }
+                TextButton(onClick = { openHelp(context, "companion.md#troubleshooting") }) { Text("Troubleshooting") }
+            }
             Text(
                 "Version ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,

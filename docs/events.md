@@ -96,7 +96,8 @@ show from [`GET /api/v1/messages`](api.md#get-apiv1messages), then carry on with
 ## Building a client app
 
 A typical client, such as an app on a second phone that shows the gateway's SMS and sends through
-it, does this:
+it, does this. The [companion app](companion.md) works this way, and its source in
+[`companion/`](../companion) is a working example.
 
 1. On start, load history with `GET /api/v1/messages?limit=100` (page with `offset`), and the SIMs
    with `GET /api/v1/sims`.

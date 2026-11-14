@@ -100,6 +100,7 @@ fun ConversationListScreen(
             TopAppBar(
                 title = { Text("Messages") },
                 actions = {
+                    HelpButton("companion.md")
                     IconButton(onClick = openSettings) {
                         Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
                     }

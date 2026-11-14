@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,14 +43,15 @@ import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
-internal enum class SettingsPage(val title: String, val summary: String) {
-    SERVER("Server", "Who can connect, ports, start on boot, HTTPS"),
-    TUNNEL("Public access", "Cloudflare Tunnel"),
-    API_KEYS("API keys", "Who may use the API, and what each key may do"),
-    WEBHOOKS("Webhooks", "Where messages are forwarded, and retries"),
-    EVENT_STREAM("Event stream", "Live events for client apps (SSE)"),
-    STORAGE("Storage", "How long messages are kept"),
-    ABOUT("About", "Version"),
+/** [help] is the page of the user guide ([docsUrl]) that the "?" in the top bar opens. */
+internal enum class SettingsPage(val title: String, val summary: String, val help: String) {
+    SERVER("Server", "Who can connect, ports, start on boot, HTTPS", "settings.md#server"),
+    TUNNEL("Public access", "Cloudflare Tunnel", "tunnel.md"),
+    API_KEYS("API keys", "Who may use the API, and what each key may do", "security.md#api-keys"),
+    WEBHOOKS("Webhooks", "Where messages are forwarded, and retries", "webhooks.md"),
+    EVENT_STREAM("Event stream", "Live events for client apps (SSE)", "events.md"),
+    STORAGE("Storage", "How long messages are kept", "settings.md#storage"),
+    ABOUT("About", "Version, help and source code", "README.md"),
 }
 
 @Composable
@@ -91,10 +93,35 @@ internal fun SettingsPageContent(app: GatewayApp, page: SettingsPage, padding: P
             }
             SettingsPage.EVENT_STREAM -> EventStreamSettings(app)
             SettingsPage.STORAGE -> StorageSettings(app)
-            SettingsPage.ABOUT -> Section("About") {
-                ValueRow("Version", BuildConfig.VERSION_NAME)
-                ValueRow("App ID", BuildConfig.APPLICATION_ID, monospace = true)
+            SettingsPage.ABOUT -> {
+                Section("About") {
+                    ValueRow("Version", BuildConfig.VERSION_NAME)
+                    ValueRow("App ID", BuildConfig.APPLICATION_ID, monospace = true)
+                }
+                HelpLinks()
             }
+        }
+    }
+}
+
+/** Ways into the user guide, and to the project, for the About page. */
+@Composable
+private fun HelpLinks() {
+    val context = LocalContext.current
+    Section("Help") {
+        Text(
+            "The user guide is on GitHub. The ? at the top of each screen opens the part about that screen.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        listOf(
+            "User guide" to docsUrl("README.md"),
+            "Getting started" to docsUrl("getting-started.md"),
+            "API reference" to docsUrl("api.md"),
+            "Troubleshooting" to docsUrl("troubleshooting.md"),
+            "Report a problem" to "$REPO_URL/issues",
+            "Source code and releases" to REPO_URL,
+        ).forEach { (label, url) ->
+            TextButton(onClick = { openInBrowser(context, url) }) { Text(label) }
         }
     }
 }

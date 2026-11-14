@@ -7,6 +7,24 @@ need to open ports, set up port forwarding, or have a public IP, so it also work
 > Anyone who knows the URL can reach the API. Requests still need an API key, so keep your keys
 > secret, and revoke any key you think has leaked. See [Security](security.md).
 
+```mermaid
+sequenceDiagram
+    participant C as Your app
+    participant CF as Cloudflare
+    participant T as cloudflared<br/>(on the phone)
+    participant G as Gateway API<br/>(localhost:8080)
+    T->>CF: Connects out when the server starts
+    Note over CF,T: No open ports or public IP needed
+    C->>CF: HTTPS request to sms.example.com
+    CF->>T: Passed down the tunnel
+    T->>G: http://localhost:8080
+    G-->>C: The response goes back the same way
+```
+
+Cloudflare handles HTTPS for the public address. On the phone, cloudflared passes requests to the
+gateway's plain HTTP port on the phone itself, which is why the tunnel works in every
+[Who can connect](security.md#who-can-connect) mode and whether or not [HTTPS](https.md) is on.
+
 ## What you need
 
 A free Cloudflare account and a domain on Cloudflare. The tunnel gets your own hostname, such as

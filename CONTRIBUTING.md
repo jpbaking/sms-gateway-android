@@ -99,6 +99,13 @@ cloud relay, can sit next to `GatewayServer` without changing it.
   keep their data.
 - **API changes** should stay backwards compatible within `/api/v1`. Update [docs/api.md](docs/api.md)
   in the same pull request.
+- **The apps link to the docs.** The **?** buttons open pages in `docs/` by file name and heading
+  anchor: `Tab.help` and `SettingsPage.help` in the gateway, and `HelpButton(...)` / `openHelp(...)`
+  calls in the companion. If you rename a docs page or one of those headings, update the links
+  there too. New settings belong in [docs/settings.md](docs/settings.md).
+- **Diagrams** are Mermaid blocks in the Markdown, which GitHub renders. The graphics in
+  `docs/images/` are hand-written SVG in the apps' colours: edit them as text, and keep the `<title>`
+  and `<desc>` up to date for screen readers.
 - Add unit tests for logic that doesn't need a phone (signing, retry timing, parsing, and so on).
 - Follow the Kotlin [coding conventions](https://kotlinlang.org/docs/coding-conventions.html).
 
@@ -129,7 +136,8 @@ git push origin v0.1.0-beta.1
 
 The version name comes from the tag. The version code is the workflow run number, which only ever
 grows, so every release installs over the previous one. Both apps get the same version and are
-signed with the same key.
+signed with the same key. The in-app help of a release opens the docs at its own tag, so fix docs
+before tagging; builds without a tag (local, CI, debug) open `main`.
 
 ### One-time signing setup
 

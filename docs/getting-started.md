@@ -1,7 +1,12 @@
 # Getting started
 
 You need an Android phone running **Android 9 or newer** with at least one active SIM, and a computer
-or server on the same network as the phone.
+or server on the same network as the phone. Other ways to reach the phone, such as a VPN or the
+Cloudflare Tunnel, can be added later: see
+[How your systems reach the phone](README.md#how-your-systems-reach-the-phone).
+
+Stuck on a screen? The **?** at the top of each screen in the app opens the page of this guide about
+it.
 
 ```mermaid
 flowchart LR
@@ -76,7 +81,7 @@ With the key, `/health` also shows the version, which is a quick way to test it:
 
 ```sh
 curl -H "X-API-Key: sgw_your_key_here" http://192.168.1.50:8080/health
-# {"status":"ok","version":"0.1.0-beta.1"}
+# {"status":"ok","version":"1.0.0"}
 ```
 
 ## 6. Send your first SMS
@@ -103,3 +108,7 @@ The status moves to `sent`, and to `delivered` if your carrier sends delivery re
 - Get incoming SMS pushed to your server: [Webhooks](webhooks.md)
 - Pick which SIM sends: [Dual-SIM and multi-SIM](multi-sim.md)
 - See everything the API can do: [API reference](api.md)
+- Text from your everyday phone through the gateway: [Companion app](companion.md)
+- Reach the gateway from outside your network: [Cloudflare Tunnel](tunnel.md)
+- Encrypt the API on your network: [HTTPS](https.md)
+- Look up any setting: [The app, screen by screen](settings.md)

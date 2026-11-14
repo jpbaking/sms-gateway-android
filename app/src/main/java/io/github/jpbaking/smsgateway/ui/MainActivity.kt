@@ -51,10 +51,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String, @DrawableRes val icon: Int) {
-    STATUS("Status", R.drawable.ic_nav_status),
-    MESSAGES("Messages", R.drawable.ic_nav_messages),
-    SETTINGS("Settings", R.drawable.ic_nav_settings),
+/** [help] is the page of the user guide ([docsUrl]) that the "?" in the top bar opens. */
+private enum class Tab(val label: String, @DrawableRes val icon: Int, val help: String) {
+    STATUS("Status", R.drawable.ic_nav_status, "getting-started.md"),
+    MESSAGES("Messages", R.drawable.ic_nav_messages, "api.md#message-status"),
+    SETTINGS("Settings", R.drawable.ic_nav_settings, "settings.md"),
 }
 
 /**
@@ -85,6 +86,7 @@ private fun GatewayRoot(app: GatewayApp) {
                         }
                     }
                 },
+                actions = { HelpButton(current?.help ?: tab.help) },
             )
         },
         bottomBar = {

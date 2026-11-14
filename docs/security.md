@@ -17,6 +17,21 @@
 - The list shows each key's first characters (`sgw_1a2b3c4d…`) and when it was last used, so you can
   spot keys that are no longer needed.
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> On: New key (shown once)
+    On --> Off: switch off
+    Off --> On: switch on
+    On --> On: Regenerate (new value, old one stops working)
+    On --> [*]: Revoke
+    Off --> [*]: Revoke
+    note right of Off
+        Requests refused, webhooks paused,
+        event streams closed
+    end note
+```
+
 ### Which permissions matter most
 
 A key that can **manage webhooks** or **follow the event stream** can receive every incoming SMS,
@@ -42,7 +57,7 @@ the key, keep only what it needs and save. Saving also clears the mark.
 ```mermaid
 flowchart LR
     K[API keys] -->|SHA-256 hash| DB[(App database)]
-    S[Webhook signing secrets<br/>Secret webhook headers<br/>HTTPS private key] -->|AES-256-GCM| DB
+    S[Webhook signing secrets<br/>Secret webhook headers<br/>Cloudflare tunnel token<br/>HTTPS private key] -->|AES-256-GCM| DB
     KS[Android Keystore<br/>non-exportable key] -. encrypts / decrypts .-> S
 ```
 
@@ -79,6 +94,25 @@ the phone itself. Two more rules apply:
 
 A refused connection gets `403` with an empty body over HTTP. Over HTTPS it is closed before the
 TLS handshake.
+
+```mermaid
+flowchart TD
+    req([A connection arrives]) --> anywhere{Mode is<br/>Anywhere?}
+    anywhere -- yes --> key
+    anywhere -- no --> self{From the phone itself?<br/>the tunnel, the HTTPS port}
+    self -- yes --> key
+    self -- no --> tunnel{Mode is<br/>Tunnel only?}
+    tunnel -- yes --> refuse
+    tunnel -- no --> cell{Arrived over<br/>mobile data?}
+    cell -- yes --> refuse
+    cell -- no --> private{From a private<br/>address?}
+    private -- yes --> key
+    private -- no --> ts{Tailscale address, and<br/>Tailscale allowed?}
+    ts -- yes --> key
+    ts -- no --> refuse
+    key[Let in: the API key<br/>and its scopes are checked next]
+    refuse[Refused: 403 with an empty body,<br/>or closed before the TLS handshake]
+```
 
 This check is one layer, not the only one. Every request still needs an API key.
 

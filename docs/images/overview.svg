@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" width="1200" height="580" role="img" aria-labelledby="t d">
+  <title id="t">How SMS Gateway works</title>
+  <desc id="d">Your app sends SMS through the phone's HTTP API. The phone sends and receives SMS on its SIMs, forwards events to your server as webhooks, and streams them live to the companion app.</desc>
+  <defs>
+    <marker id="hG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5CE07A"/></marker>
+    <marker id="hV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#A45CF0"/></marker>
+    <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6EE8F0"/></marker>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B2244"/>
+      <stop offset="1" stop-color="#071A34"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #E3ECFF; }
+    .h { font-size: 13px; font-weight: 700; letter-spacing: 2px; fill: #A9B8D6; }
+    .title { font-size: 19px; font-weight: 600; }
+    .sub { font-size: 14px; fill: #A9B8D6; }
+    .mod { font-size: 15px; font-weight: 600; }
+    .modsub { font-size: 12px; fill: #A9B8D6; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .card { fill: #071A34; stroke: #132A4A; stroke-width: 2; }
+    .module { fill: #010C27; stroke: #132A4A; stroke-width: 1.5; }
+  </style>
+
+  <rect x="0" y="0" width="1200" height="580" rx="24" fill="#010C27"/>
+  <g fill="#5479A8" opacity="0.6">
+    <circle cx="760" cy="40" r="1.5"/><circle cx="830" cy="560" r="1.2"/><circle cx="420" cy="540" r="1.5"/>
+    <circle cx="1120" cy="40" r="1.2"/><circle cx="60" cy="545" r="1.5"/><circle cx="455" cy="30" r="1.2"/>
+  </g>
+
+  <!-- Your systems -->
+  <text class="h" x="30" y="76">YOUR SYSTEMS</text>
+
+  <rect class="card" x="30" y="95" width="260" height="100" rx="16"/>
+  <rect x="48" y="122" width="46" height="46" rx="10" fill="#0E5A2C"/>
+  <text x="71" y="151" text-anchor="middle" class="mono" style="fill:#5CE07A;font-weight:700">&lt;/&gt;</text>
+  <text class="title" x="108" y="140">Your app</text>
+  <text class="sub" x="108" y="162">sends SMS, reads messages</text>
+
+  <rect class="card" x="30" y="231" width="260" height="100" rx="16"/>
+  <rect x="48" y="258" width="46" height="46" rx="10" fill="#3B1B66"/>
+  <g fill="none" stroke="#A45CF0" stroke-width="2">
+    <rect x="58" y="266" width="26" height="9" rx="2"/><rect x="58" y="279" width="26" height="9" rx="2"/><rect x="58" y="292" width="26" height="6" rx="2"/>
+  </g>
+  <text class="title" x="108" y="276">Your server</text>
+  <text class="sub" x="108" y="298">receives webhooks</text>
+
+  <rect class="card" x="30" y="367" width="260" height="100" rx="16"/>
+  <rect x="48" y="394" width="46" height="46" rx="10" fill="#0B4F57"/>
+  <rect x="62" y="399" width="18" height="36" rx="4" fill="none" stroke="#6EE8F0" stroke-width="2"/>
+  <text class="title" x="108" y="412">Companion app</text>
+  <text class="sub" x="108" y="434">chats, on another phone</text>
+
+  <!-- The network between them -->
+  <rect x="302" y="95" width="186" height="372" rx="14" fill="none" stroke="#132A4A" stroke-width="2" stroke-dasharray="6 6"/>
+  <text x="395" y="76" text-anchor="middle" class="sub" style="font-size:13px">Wi-Fi, VPN or tunnel</text>
+
+  <line x1="290" y1="145" x2="514" y2="145" stroke="#5CE07A" stroke-width="2.5" marker-end="url(#hG)"/>
+  <text x="396" y="133" text-anchor="middle" class="mono" style="fill:#5CE07A">POST /api/v1/messages</text>
+
+  <line x1="518" y1="281" x2="294" y2="281" stroke="#A45CF0" stroke-width="2.5" marker-end="url(#hV)"/>
+  <text x="404" y="269" text-anchor="middle" class="mono" style="fill:#C9A2F7">webhook POST</text>
+  <text x="404" y="303" text-anchor="middle" class="modsub">signed, retried</text>
+
+  <line x1="294" y1="417" x2="514" y2="417" stroke="#6EE8F0" stroke-width="2.5" marker-start="url(#hC)" marker-end="url(#hC)"/>
+  <text x="404" y="405" text-anchor="middle" class="mono" style="fill:#6EE8F0">API + live events</text>
+
+  <!-- The phone -->
+  <rect x="500" y="36" width="220" height="512" rx="34" fill="url(#phone)" stroke="#5CE07A" stroke-width="3" filter="url(#glow)"/>
+  <rect x="580" y="48" width="60" height="8" rx="4" fill="#010C27"/>
+  <text x="610" y="90" text-anchor="middle" style="font-size:20px;font-weight:700;fill:#5CE07A">SMS Gateway</text>
+
+  <rect class="module" x="518" y="118" width="184" height="54" rx="10"/>
+  <text class="mod" x="532" y="141">HTTP API</text>
+  <text class="modsub" x="532" y="160">port 8080, HTTPS 8443</text>
+
+  <rect class="module" x="518" y="186" width="184" height="54" rx="10"/>
+  <text class="mod" x="532" y="209">Access checks</text>
+  <text class="modsub" x="532" y="228">who can connect, API keys</text>
+
+  <rect class="module" x="518" y="254" width="184" height="54" rx="10"/>
+  <text class="mod" x="532" y="277">Webhook queue</text>
+  <text class="modsub" x="532" y="296">survives reboots</text>
+
+  <rect class="module" x="518" y="322" width="184" height="54" rx="10"/>
+  <text class="mod" x="532" y="345">Local database</text>
+  <text class="modsub" x="532" y="364">messages, kept 30 days</text>
+
+  <rect class="module" x="518" y="390" width="184" height="54" rx="10"/>
+  <text class="mod" x="532" y="413">Event stream</text>
+  <text class="modsub" x="532" y="432">SSE, off by default</text>
+
+  <rect x="518" y="458" width="86" height="54" rx="10" fill="#0E5A2C" stroke="#5CE07A" stroke-width="1.5"/>
+  <text x="561" y="490" text-anchor="middle" class="mod" style="fill:#B8FFC6">SIM 1</text>
+  <rect x="616" y="458" width="86" height="54" rx="10" fill="#0E5A2C" stroke="#5CE07A" stroke-width="1.5"/>
+  <text x="659" y="490" text-anchor="middle" class="mod" style="fill:#B8FFC6">SIM 2</text>
+  <rect x="580" y="526" width="60" height="5" rx="2.5" fill="#5479A8"/>
+
+  <!-- SMS -->
+  <line x1="706" y1="485" x2="896" y2="485" stroke="#5CE07A" stroke-width="2.5" marker-start="url(#hG)" marker-end="url(#hG)"/>
+  <text x="801" y="473" text-anchor="middle" class="mono" style="fill:#5CE07A">SMS</text>
+  <text x="801" y="507" text-anchor="middle" class="modsub">SIM picked per message</text>
+
+  <!-- Mobile network -->
+  <text class="h" x="900" y="76">MOBILE NETWORK</text>
+  <rect class="card" x="900" y="95" width="270" height="417" rx="16"/>
+  <g stroke="#6EE8F0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1035,150 L1010,260 M1035,150 L1060,260 M1018,225 L1052,225 M1024,195 L1046,195"/>
+    <path d="M1012,138 a32,32 0 0,0 0,24 M1058,138 a32,32 0 0,1 0,24" opacity="0.8"/>
+    <path d="M998,128 a50,50 0 0,0 0,44 M1072,128 a50,50 0 0,1 0,44" opacity="0.5"/>
+  </g>
+  <circle cx="1035" cy="150" r="6" fill="#6EE8F0"/>
+  <text x="1035" y="300" text-anchor="middle" class="title">Carrier network</text>
+  <text x="1035" y="322" text-anchor="middle" class="sub">to and from any number</text>
+
+  <g fill="none" stroke="#A9B8D6" stroke-width="2">
+    <rect x="950" y="360" width="34" height="62" rx="7"/>
+    <rect x="1018" y="360" width="34" height="62" rx="7"/>
+    <rect x="1086" y="360" width="34" height="62" rx="7"/>
+  </g>
+  <g fill="#A45CF0">
+    <rect x="955" y="372" width="24" height="10" rx="4"/>
+    <rect x="1023" y="380" width="24" height="10" rx="4" fill="#5CE07A"/>
+    <rect x="1091" y="372" width="24" height="10" rx="4"/>
+  </g>
+  <text x="1035" y="455" text-anchor="middle" class="sub">Recipients' phones</text>
+</svg>

@@ -25,21 +25,21 @@ sends each message. Everything runs on the phone: no cloud service, no subscript
 - 🛡️ **Local network only by default**: connections over mobile data or from public addresses are refused before the key is even checked
 - 🔒 **Secrets encrypted** with the Android Keystore. Extra webhook headers (e.g. `Authorization`) are supported
 - 💾 **Local database** with a retention policy and automatic compaction
+- 🔐 **Optional HTTPS**, with a self-signed certificate, your own PEM files, or a PKCS#12 file
+- 🌍 **Optional public access** through the built-in Cloudflare Tunnel: a fixed HTTPS address that
+  works on mobile data, with no port forwarding
 - 🔋 Runs as a foreground service, survives reboots, works on **Android 9 and newer**
+- ❓ **Help built in**: the **?** on every screen opens the matching page of the user guide
 
 ## How it works
 
-```mermaid
-flowchart LR
-    app[Your app] -- "POST /api/v1/messages" --> phone
-    subgraph phone[Android phone running SMS Gateway]
-        api[HTTP API] --> db[(Local DB)]
-        api --> sim1[SIM 1]
-        api --> sim2[SIM 2]
-    end
-    sim1 & sim2 <--> net((Mobile<br/>network))
-    phone -- "webhook: sms:received,<br/>sms:sent, sms:delivered" --> hook[Your server]
-```
+<p align="center">
+  <img src="docs/images/overview.svg" alt="Your app sends SMS through the phone's HTTP API. The phone sends and receives SMS on its SIMs, forwards events to your server as webhooks, and streams them live to the companion app." width="100%">
+</p>
+
+Your app talks to the phone over HTTP, and the phone does the texting on its own SIM cards. Incoming
+SMS and status changes go back to you as webhooks, or live over the event stream. Sending a message
+looks like this:
 
 ```mermaid
 sequenceDiagram
@@ -54,10 +54,23 @@ sequenceDiagram
     G-->>A: webhook sms:delivered
 ```
 
+## Download
+
+Every [release](https://github.com/jpbaking/sms-gateway-android/releases) has two APKs:
+
+| File | Install it on | What it is |
+| --- | --- | --- |
+| `sms-gateway-<version>.apk` | The phone with the SIM cards | **SMS Gateway**, the gateway itself |
+| `gateway-sms-companion-<version>.apk` | Another phone (optional) | **Gateway SMS**, a messaging app for the gateway's texts. See [Companion app](docs/companion.md) |
+
+To check a download, compare the output of `sha256sum sms-gateway-*.apk` (macOS:
+`shasum -a 256 sms-gateway-*.apk`) with the release's `SHA256SUMS.txt`. Updates install over the
+previous version and keep your settings and data.
+
 ## Quick start
 
-1. Download the APK from [Releases](https://github.com/jpbaking/sms-gateway-android/releases) and
-   install it. If Play Protect complains, see [Troubleshooting](docs/troubleshooting.md#the-install-is-blocked).
+1. Install `sms-gateway-<version>.apk` on the phone. If Play Protect complains, see
+   [Troubleshooting](docs/troubleshooting.md#the-install-is-blocked).
 2. Open the app, **Grant permissions**, tap **Allow running in background**, then **Start server**.
 3. In **Settings → API keys**, tap **New key** and copy the key.
 4. Send a message:
@@ -72,14 +85,19 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md)
+The **[user guide](docs/README.md)** covers everything. The app's **?** buttons open it at the
+right page.
+
+- [Getting started](docs/getting-started.md): install, set up, send your first SMS
+- [The app, screen by screen](docs/settings.md): every setting and its default
 - [API reference](docs/api.md)
 - [Webhooks](docs/webhooks.md): events, payloads, signature verification, retries
 - [Event stream (SSE)](docs/events.md): live events for client apps, off by default
+- [Companion app](docs/companion.md): the gateway's texts as chats on another phone
 - [Dual-SIM and multi-SIM](docs/multi-sim.md)
 - [HTTPS](docs/https.md): self-signed, pasted PEM, or PKCS#12 certificate
 - [Public access (Cloudflare Tunnel)](docs/tunnel.md)
-- [Security](docs/security.md)
+- [Security](docs/security.md): API keys, who can connect, how secrets are stored
 - [Troubleshooting](docs/troubleshooting.md)
 
 ## Good to know
@@ -90,6 +108,11 @@ Full walkthrough: **[Getting started](docs/getting-started.md)**.
   the built-in [Cloudflare Tunnel](docs/tunnel.md) for a public HTTPS URL. By default it only
   accepts connections from the local network; see
   [Who can connect](docs/security.md#who-can-connect).
+
+  <img src="docs/images/connect-options.svg" alt="Three ways to reach the gateway: the same Wi-Fi or LAN, a VPN such as Tailscale or WireGuard, or the Cloudflare Tunnel." width="100%">
+
+- **A spare phone on a charger works best**, with a SIM plan that includes SMS and the app allowed
+  to run in the background.
 - The API is plain HTTP on your network unless you turn on [HTTPS](docs/https.md). Read
   [Security](docs/security.md) before exposing it.
 - SMS costs whatever your carrier charges. Check your plan before sending in bulk.

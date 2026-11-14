@@ -102,3 +102,18 @@ accepted the message.
 ## The database is getting big
 
 In **Settings → Storage**, tap **Edit**, lower **Keep messages for**, tap **Save**, then tap **Clean up now**. The default is 30 days.
+
+## The companion app can't connect
+
+See [Companion app → Troubleshooting](companion.md#troubleshooting).
+
+## Still stuck?
+
+Open an [issue](https://github.com/jpbaking/sms-gateway-android/issues) with:
+
+- the phone model and Android version,
+- the app version (**Settings → About**),
+- what you sent and what came back, for example the `curl` command and the response, with the API
+  key left out,
+- for tunnel problems, the lines from **Settings → Public access → Log**. Issues are public, so
+  remove host names and anything else you'd rather not share.
